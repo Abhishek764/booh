@@ -25,6 +25,18 @@ phase and task ID.
   values, and non-negative duration constraints.
 - Added isolated SQLite upgrade/rollback tests and PostgreSQL DDL checks.
 
+## 2026-10-04 — TASK-004
+
+- Added the provider-isolated Google OAuth authorization-code flow with PKCE,
+  state, nonce, issuer, audience, signature, and claim validation.
+- Added provider-neutral identity persistence, opaque server-side sessions,
+  secure cookies, CSRF/origin checks, idle/absolute expiry, and logout
+  revocation.
+- Added authenticated identity and authorization boundaries with owner-scoped
+  repository queries and bounded non-enumerating errors.
+- Added deterministic OAuth, migration, ownership, logging, and dependency
+  security checks.
+
 ## 2026-10-04 — TASK-001
 
 - Initialized the BOOH engineering foundation.

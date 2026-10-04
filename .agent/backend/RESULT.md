@@ -1,12 +1,13 @@
 # Backend Agent Result
 
-TASK: TASK-003
+TASK: TASK-004 — security fix iteration 2
 STATUS: COMPLETE
-FILES CHANGED: backend/app/database.py, backend/app/models.py, backend/alembic.ini, backend/alembic/, backend/tests/test_database.py, backend/tests/test_migrations.py, backend/requirements.txt, docs/database.md
-API CHANGES: None.
-DATABASE CHANGES: Added the initial users/events SQLAlchemy mappings and Alembic migration with owner foreign keys, UTC-aware timestamps, allowlisted event values, and duration constraints.
-TESTS: `.venv/bin/python -m pytest` — 9 passed; isolated Alembic upgrade/rollback, `alembic check`, `pip check`, and `pip-audit --local --strict` passed.
-SECURITY: No secrets or private data; database URL is required explicitly; user ownership is enforced by a non-null foreign key; no raw SQL from user input; pip-audit reported no known vulnerabilities.
-COMMIT: Local TASK-003 completion commit; hash reported in the completion report.
-KNOWN ISSUES: PostgreSQL integration was validated through dialect compilation; no PostgreSQL service is available in this environment for a live connection test. Starlette emits deprecation warnings for its legacy httpx TestClient bridge.
-NEXT DEPENDENCY: TASK-004 — Google OAuth provider abstraction, sessions, and authorization.
+Q&A CHECK: No blocking questions.
+FILES CHANGED: `README.md` (required local-run command update), `backend/app/models.py`, `backend/alembic/versions/0002_authentication_boundary.py`, `backend/app/server.py`, `backend/README.md`, `backend/app/`, `backend/tests/`, `backend/requirements.txt`, `backend/requirements-dev.txt`, and this result file.
+API CHANGES: Preserved the versioned login/callback/logout/me routes. The supported local/server run path is now `.venv/bin/python -m backend.app.server`; it disables Uvicorn access logging and default logging configuration so callback query values cannot enter default request-line logs. The server entrypoint regression test asserts `access_log=False`, `log_config=None`, and no request-line/query logging code.
+DATABASE CHANGES: Added the missing bounded `OAuthTransaction.code_challenge` ORM field and matching non-null `String(43)` Alembic column. SQLAlchemy repository tests now create, challenge-check, atomically consume, replay-reject, and persist this PKCE transaction field. Fresh `0001 → 0002` upgrade, Alembic drift check, and rollback pass.
+TESTS: `.venv/bin/python -m pytest` — 37 passed; `compileall` passed; isolated Alembic upgrade/check/rollback passed; `pip check` passed; `pip-audit --local --strict` passed with no known vulnerabilities; `git diff --check` passed. No repository lint/type checker is installed; existing Starlette/httpx deprecation warnings remain.
+SECURITY: The two HIGH findings from the security re-review are fixed. The production SQLAlchemy path now matches the service/repository PKCE challenge contract and enforces exact challenge matching during a single conditional transaction consume. The supported Uvicorn entrypoint disables raw access logging and default log configuration; no application code logs request URLs, OAuth codes/state/nonce, tokens, cookies, raw claims, provider responses, private history, or database URLs. Existing provider-neutral identity, state/nonce, PKCE, Origin/CSRF, no-store, session expiry/revocation, and owner-constrained controls remain covered by deterministic synthetic tests.
+COMMIT: N/A — no commit created; the orchestrator owns the single TASK-004 commit.
+KNOWN ISSUES: Live Google and PostgreSQL services were not available; isolated SQLite and synthetic provider tests cover the implemented boundaries. No blocking CRITICAL or HIGH security findings remain. `.agent/security/RESULT.md` was read but left unchanged as instructed.
+NEXT DEPENDENCY: TASK-005 — authenticated baby resource API.

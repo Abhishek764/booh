@@ -77,8 +77,13 @@ access will enforce an authenticated ownership boundary.
 
 ## Authentication
 
-Google OAuth is planned behind a provider abstraction. OAuth, session, CSRF,
-cookie, and authorization implementation has not started.
+Google OAuth is implemented behind a provider abstraction. The authorization
+code flow uses PKCE, fixed HTTPS provider endpoints, signed short-lived state
+cookies, server-side one-use transactions, validated issuer/audience/signature/
+nonce/claims, provider-neutral `(issuer, subject)` identity persistence, opaque
+server-side sessions, secure cookies, CSRF/origin checks, session rotation,
+idle/absolute expiry, and logout revocation. Live Google service testing remains
+pending.
 
 ## Data Import
 
@@ -106,10 +111,11 @@ provider calls, storage, retention, and failure handling are not implemented.
 
 ## API
 
-The public API prefix is `/api/v1`. The scaffold exposes only
-`GET /api/v1/health`; it does not query a database or expose private runtime
-details. Route handlers will remain thin and delegate to services, repositories,
-and the database according to the rules in `AGENTS.md`.
+The public API prefix is `/api/v1`. The current routes are `GET /health`,
+`GET /auth/login`, `GET /auth/callback`, `POST /auth/logout`, and authenticated
+`GET /auth/me` under that prefix. Auth routes remain thin and delegate to
+services, repositories, and provider abstractions. Auth responses are bounded,
+non-enumerating, and marked `no-store` where identity or flow state is present.
 
 ## Frontend
 
@@ -165,6 +171,8 @@ Names only; values must never be stored here:
 - `TASK-001` — repository engineering foundation (`a335d75`).
 - Roadmap `TASK-002` — PostgreSQL schema and Alembic workflow (`2779601`).
 - Roadmap `TASK-003` — application boundary and frontend scaffold (`3d7c696`).
+- Roadmap `TASK-004` — Google OAuth, sessions, and authorization boundary
+  (local completion commit for this milestone).
 
 ## Engineering Decisions
 
@@ -180,36 +188,36 @@ Names only; values must never be stored here:
 
 - User sleep and feed histories are sensitive household data.
 - Sparse or irregular event histories can produce misleading confidence.
-- OAuth/session implementation can create account-linking or IDOR risks.
+- OAuth/session implementation can create account-linking or IDOR risks; the
+  completed boundary is covered by deterministic tests but needs live-service
+  and deployment review.
 - CSV parsing and LLM inputs are untrusted boundaries.
 - Provider availability, cost, and data handling need review before integration.
 - ML and generated summaries must not be interpreted as medical guidance.
 
 ## Current TODO
 
-- Implement authentication and authorization with security tests.
 - Define validated event contracts and Huckleberry import behavior.
 - Implement and evaluate the deterministic baseline before TabPFN.
 
 ## Last Completed Task
 
-Roadmap `TASK-003` — scaffold the Next.js/React/TypeScript application
-boundary.
+Roadmap `TASK-004` — implement the Google OAuth provider abstraction, sessions,
+and authorization boundary.
 
 ## Last Commit
 
-Local completed commit `3d7c696` for the current last roadmap task; no GitHub
-push is required for local progress.
+Local TASK-004 completion commit; no GitHub push is required for local progress.
 
 ## Last Security Review
 
-Completed foundation/database review: owner foreign keys, UTC-aware timestamps,
-allowlisted event values, explicit database configuration, migration rollback,
-isolated test database behavior, frontend dependency audit, and Python
-dependency audit reviewed. No known blocking vulnerabilities remain in the
-completed work.
+TASK-004 final security review: 37 backend tests, OAuth state/nonce/PKCE and
+session checks, ownership checks, migration upgrade/check/rollback, supported
+server logging probe, dependency checks, and secret review passed. No CRITICAL
+or HIGH findings remain. Residual medium/low risks include unavailable live
+Google/PostgreSQL smoke tests, deployment egress/DNS enforcement, rate limiting,
+and the lack of hash-locked dependency artifacts.
 
 ## Next Recommended Task
 
-`TASK-004` — implement the Google OAuth provider abstraction, sessions, and
-authorization boundary.
+`TASK-005` — implement the authenticated baby resource API.

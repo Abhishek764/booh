@@ -6,11 +6,11 @@ wake-up is likely and roughly how much time remains.
 
 ## Project status
 
-This repository currently contains the engineering foundation and application
-boundaries. The backend exposes only a versioned health check and the frontend
-contains a minimal accessible shell. OAuth, database models, Huckleberry
-import, TabPFN, Gemma, ElevenLabs, the dashboard, and deployment are tracked as
-future tasks in [`TASKS.md`](TASKS.md).
+This repository contains the engineering foundation, application boundaries,
+database workflow, and authenticated Google OAuth/session boundary. The
+frontend remains a minimal accessible shell. Baby resources, event APIs,
+Huckleberry import, prediction, summaries, audio, dashboard behavior, and
+deployment are tracked as future tasks in [`TASKS.md`](TASKS.md).
 
 ## Intended stack
 
@@ -84,12 +84,12 @@ local file or real credentials.
 python3 -m venv .venv
 .venv/bin/python -m pip install -r backend/requirements-dev.txt
 .venv/bin/python -m pytest
-.venv/bin/python -m uvicorn backend.app.main:app --reload
+.venv/bin/python -m backend.app.server
 ```
 
-The health check is available at `GET /api/v1/health`. API documentation is
-disabled during the scaffold phase until authenticated, domain-specific routes
-are introduced.
+The supported backend entrypoint disables raw Uvicorn access logging so OAuth
+callback query values are not emitted in request-line logs. The health check is
+available at `GET /api/v1/health`. API documentation remains disabled.
 
 ### Frontend
 

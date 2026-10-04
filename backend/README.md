@@ -18,10 +18,10 @@ From the repository root:
 python3 -m venv .venv
 .venv/bin/python -m pip install -r backend/requirements-dev.txt
 .venv/bin/python -m pytest
-.venv/bin/python -m uvicorn backend.app.main:app --reload
+.venv/bin/python -m backend.app.server
 ```
 
-The only public route in this phase is `GET /api/v1/health`. It returns a
-bounded, explicit response contract and does not query a database or expose
-runtime details. OpenAPI and interactive documentation remain disabled until
-authenticated application routes exist.
+The supported server entrypoint disables Uvicorn access logging because its
+default request-line formatter would expose OAuth callback query parameters.
+The API exposes the versioned health route and authenticated OAuth/session
+routes; OpenAPI and interactive documentation remain disabled.

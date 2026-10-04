@@ -7,7 +7,7 @@ file is a short current-phase view.
 
 - [x] Define the PostgreSQL schema and Alembic workflow (roadmap `TASK-002`).
 - [x] Scaffold the frontend application boundary (roadmap `TASK-003`).
-- [ ] Implement Google OAuth, sessions, and authorization (`TASK-004`).
+- [x] Implement Google OAuth, sessions, and authorization (`TASK-004`).
 - [ ] Implement the baby resource API (`TASK-005`).
 - [ ] Implement the sleep/feed/wake event API (`TASK-006`).
 - [ ] Implement the bounded Huckleberry importer (`TASK-007`).

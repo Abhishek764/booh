@@ -26,8 +26,14 @@ def test_sqlite_engine_is_explicit_and_isolated() -> None:
     assert engine.echo is False
 
 
-def test_orm_metadata_contains_only_initial_approved_tables() -> None:
-    assert set(Base.metadata.tables) == {"users", "events"}
+def test_orm_metadata_contains_approved_auth_and_history_tables() -> None:
+    assert set(Base.metadata.tables) == {
+        "users",
+        "events",
+        "user_identities",
+        "auth_sessions",
+        "oauth_transactions",
+    }
 
 
 def test_postgresql_mapping_uses_uuid_and_timezone_aware_timestamps() -> None:
