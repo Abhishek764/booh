@@ -9,10 +9,9 @@ uncertain, and not medical advice.
 
 ## Current Phase
 
-Phase 0 — Engineering foundation and application boundaries. The repository
-contains the project rules, security guidance, planning artifacts, a minimal
-FastAPI boundary with a versioned health check, and a minimal Next.js frontend
-shell. Domain functionality has not been implemented.
+Phase 1 — Authenticated domain foundation. The repository foundation,
+PostgreSQL/Alembic schema, and Next.js application boundary are complete. The
+next dependency-ready milestone is OAuth and session authorization.
 
 ## Architecture
 
@@ -70,10 +69,11 @@ TASKS.md       Dependency-aware task board
 
 ## Database
 
-PostgreSQL is planned as the production database, accessed through SQLAlchemy
-with Alembic migrations. No models, migrations, or production data exist yet.
-Timestamps will be stored in UTC, and all user-scoped access will enforce an
-authenticated ownership boundary.
+PostgreSQL is the production database target, accessed through SQLAlchemy with
+Alembic migrations. The initial migration creates only `users` and `events`,
+with UUID keys, UTC-aware timestamps, ownership foreign keys, allowlisted event
+values, and duration constraints. No production data exists. All user-scoped
+access will enforce an authenticated ownership boundary.
 
 ## Authentication
 
@@ -160,9 +160,15 @@ Names only; values must never be stored here:
 - `MAX_UPLOAD_BYTES`
 - `MAX_IMPORT_ROWS`
 
+## Completed Tasks
+
+- `TASK-001` — repository engineering foundation (`a335d75`).
+- Roadmap `TASK-002` — PostgreSQL schema and Alembic workflow (`2779601`).
+- Roadmap `TASK-003` — application boundary and frontend scaffold (`3d7c696`).
+
 ## Engineering Decisions
 
-- Keep the initial repository documentation-first and functionality-free.
+- Keep domain work dependency-ordered and preserve isolated ownership by agent.
 - Enforce layered backend and prediction architecture.
 - Use provider/service abstractions for external systems.
 - Keep the deterministic seven-day baseline explicit before TabPFN.
@@ -187,20 +193,21 @@ Names only; values must never be stored here:
 
 ## Last Completed Task
 
-`TASK-003` — define the initial PostgreSQL schema, SQLAlchemy mappings, and
-Alembic workflow.
+Roadmap `TASK-003` — scaffold the Next.js/React/TypeScript application
+boundary.
 
 ## Last Commit
 
-Local `TASK-003` completion commit (hash reported in the completion report); no
-GitHub push is required for this task.
+Local completed commit `3d7c696` for the current last roadmap task; no GitHub
+push is required for local progress.
 
 ## Last Security Review
 
-TASK-003 review: owner foreign keys, UTC-aware timestamps, allowlisted event
-values, explicit database configuration, migration rollback, isolated test
-database behavior, and pinned Python dependencies reviewed. `pip-audit`
-reported no known vulnerabilities.
+Completed foundation/database review: owner foreign keys, UTC-aware timestamps,
+allowlisted event values, explicit database configuration, migration rollback,
+isolated test database behavior, frontend dependency audit, and Python
+dependency audit reviewed. No known blocking vulnerabilities remain in the
+completed work.
 
 ## Next Recommended Task
 
