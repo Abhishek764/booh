@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from typing import cast
+from typing import Annotated, cast
 
-from fastapi import Request
+from fastapi import Header, Request
 from sqlalchemy.exc import SQLAlchemyError
 
 from backend.app.config import AuthSettings, ConfigurationError
@@ -12,8 +12,10 @@ from backend.app.database import create_database_engine, create_session_factory
 from backend.app.providers.google import GoogleOAuthProvider
 from backend.app.repositories.auth import SqlAlchemyAuthRepository
 from backend.app.repositories.babies import SqlAlchemyBabyRepository
+from backend.app.repositories.events import SqlAlchemyEventRepository
 from backend.app.services.auth import AuthError, AuthService, Principal
 from backend.app.services.babies import BabyError, BabyService
+from backend.app.services.events import EventError, EventService
 
 
 def build_auth_service(settings: AuthSettings | None = None) -> AuthService:
@@ -48,6 +50,25 @@ def get_current_principal(request: Request) -> Principal:
     )
 
 
+def get_csrf_protected_principal(
+    request: Request,
+    csrf_header: Annotated[str | None, Header(alias="X-CSRF-Token")] = None,
+) -> Principal:
+    """Authenticate and validate the CSRF proof for state-changing requests."""
+
+    service = get_auth_service(request)
+    principal = service.authenticate(
+        request.cookies.get(service.cookie_names.session)
+    )
+    service.validate_csrf(
+        principal,
+        csrf_cookie=request.cookies.get(service.cookie_names.csrf),
+        csrf_header=csrf_header,
+        origin=request.headers.get("origin"),
+    )
+    return principal
+
+
 def build_baby_service() -> BabyService:
     """Construct the baby service from the explicitly configured database."""
 
@@ -73,10 +94,38 @@ def get_baby_service(request: Request) -> BabyService:
         return cast(BabyService, configured)
 
 
+def build_event_service() -> EventService:
+    """Construct the event service from the explicitly configured database."""
+
+    engine = create_database_engine()
+    repository = SqlAlchemyEventRepository(create_session_factory(engine))
+    return EventService(repository)
+
+
+def get_event_service(request: Request) -> EventService:
+    """Lazily construct the owner-scoped event service."""
+
+    configured = getattr(request.app.state, "event_service", None)
+    if configured is not None:
+        return cast(EventService, configured)
+    with request.app.state.auth_lock:
+        configured = getattr(request.app.state, "event_service", None)
+        if configured is None:
+            try:
+                configured = build_event_service()
+            except (RuntimeError, SQLAlchemyError):
+                raise EventError("service_unavailable", 503) from None
+            request.app.state.event_service = configured
+        return cast(EventService, configured)
+
+
 __all__ = [
     "build_auth_service",
     "build_baby_service",
+    "build_event_service",
     "get_auth_service",
     "get_baby_service",
+    "get_csrf_protected_principal",
     "get_current_principal",
+    "get_event_service",
 ]

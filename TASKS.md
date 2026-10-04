@@ -11,8 +11,8 @@ understood. Status values are `DONE`, `READY`, `BLOCKED`, or `PLANNED`.
 | `TASK-003` | frontend | Build the Next.js/React/TypeScript frontend foundation. | `TASK-001` | `frontend/`, `tests/` | `DONE` | Local frontend commands, responsive nighttime shell, accessible boundaries, theme preference, browser checks, and secure browser boundary pass. | No browser secrets, no database access, dependency review, XSS-safe rendering. |
 | `TASK-004` | backend/security | Implement the secure Google OAuth provider abstraction, sessions, and authorization boundary. | `TASK-002`, `TASK-003` | `backend/`, `tests/`, `SECURITY.md` | `DONE` | Canonical Google login/callback/logout/me routes, exact-origin CORS, session-bound CSRF, cookie flags, invalid state/callback, expiry, open-redirect, and ownership tests pass. | OAuth state/nonce, PKCE, CSRF, secure cookies, exact CORS, IDOR prevention, secret handling. |
 | `TASK-005` | backend | Implement the authenticated baby resource API. | `TASK-004` | `backend/`, `tests/`, `docs/` | `DONE` | Versioned CRUD contracts, owner-scoped repository predicates, strict request validation, bounded bodies/errors, and IDOR tests pass. | IDOR prevention, authenticated ownership, input limits, no private data in errors/logs. |
-| `TASK-006` | backend | Implement the validated sleep/feed/wake event API. | `TASK-005` | `backend/`, `tests/`, `docs/` | `READY` | Versioned event contracts, UTC normalization, filtering bounds, ownership, and validation pass. | IDOR prevention, allowlisted fields, timestamp validation, transaction safety. |
-| `TASK-007` | data/backend | Implement the bounded Huckleberry CSV importer. | `TASK-006` | `backend/`, `tests/`, `docs/` | `PLANNED` | Supported synthetic fixtures import deterministically; malformed, oversized, duplicate, and impossible rows are handled explicitly. | Upload limits, safe temporary files, formula-injection defense, deletion path, isolation. |
+| `TASK-006` | backend | Implement the validated sleep/feed/wake event API. | `TASK-005` | `backend/`, `tests/`, `docs/` | `DONE` | Versioned event contracts, UTC normalization, bounded pagination, owner-scoped nested/create/update/delete queries, CSRF-protected mutations, and validation pass. | IDOR prevention, allowlisted fields, timestamp validation, transaction safety. |
+| `TASK-007` | data/backend | Implement the bounded Huckleberry CSV importer. | `TASK-006` | `backend/`, `tests/`, `docs/` | `READY` | Supported synthetic fixtures import deterministically; malformed, oversized, duplicate, and impossible rows are handled explicitly. | Upload limits, safe temporary files, formula-injection defense, deletion path, isolation. |
 | `TASK-008` | ml/backend | Implement the versioned feature service and deterministic seven-day baseline. | `TASK-006` | `ml/`, `backend/`, `tests/` | `PLANNED` | Feature versioning, sparse-history behavior, reproducible predictions, and baseline evaluation pass. | Authorized user data only, no cross-user pooling, explicit uncertainty, no medical claims. |
 | `TASK-009` | ml | Add the isolated TabPFN adapter and evaluate it against the baseline. | `TASK-008` | `ml/`, `tests/`, `docs/` | `PLANNED` | Offline evaluation documents when TabPFN improves the baseline and when it is unavailable. | Bounded resources, model/version provenance, sparse-data safety, no training leakage. |
 | `TASK-011` | backend | Expose the layered prediction API. | `TASK-004`, `TASK-008`, `TASK-009` | `backend/`, `tests/`, `docs/` | `PLANNED` | `/api/v1` contracts, auth, validation, ownership, errors, and model metadata are tested and documented. | Thin routes, IDOR tests, rate/size limits, no raw private history in logs/errors. |
@@ -32,7 +32,11 @@ database-backed authentication/security tests.
 
 Completed TASK-005 (backend): owner-scoped baby CRUD routes, strict contracts,
 repository-level ownership predicates, bounded request bodies, and explicit
-cross-user/validation tests. Event APIs remain TASK-006.
+cross-user/validation tests.
+
+Completed TASK-006 (backend): owner-scoped sleep/feed/wake event routes, UTC
+normalization, strict values and timestamp validation, CSRF-protected mutations,
+bounded pagination, and explicit cross-user/IDOR tests. Import remains TASK-007.
 
 The first implementation used the original board's numbering for scaffolding
 and database work. The current roadmap preserves the completed commits while

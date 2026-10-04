@@ -38,9 +38,18 @@ The authenticated baby profile routes are:
 - `PATCH /api/v1/babies/{baby_id}`
 - `DELETE /api/v1/babies/{baby_id}`
 
+The authenticated event routes are:
+
+- `GET /api/v1/babies/{baby_id}/events`
+- `POST /api/v1/babies/{baby_id}/events`
+- `PATCH /api/v1/events/{event_id}`
+- `DELETE /api/v1/events/{event_id}`
+
 The configured `FRONTEND_ORIGIN` is the only credentialed CORS origin. The
 server keeps the session cookie HttpOnly and returns only a session-bound CSRF
 proof from `/auth/me`. Baby queries always include the authenticated session
 owner in the repository predicate; request bodies reject `user_id`, unknown
 fields, malformed IDs, invalid dates, invalid IANA timezones, and oversized
-payloads. OpenAPI and interactive documentation remain disabled.
+payloads. Event mutations require the same session-bound CSRF proof and exact
+frontend origin; timestamps are normalized to UTC and ambiguous local times
+are rejected. OpenAPI and interactive documentation remain disabled.

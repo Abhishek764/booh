@@ -250,6 +250,31 @@ class AuthService:
         if not session_cookie:
             return
         principal = self.authenticate(session_cookie)
+        self.validate_csrf(
+            principal,
+            csrf_cookie=csrf_cookie,
+            csrf_header=csrf_header,
+            origin=origin,
+        )
+        try:
+            self._repository.revoke_session(
+                token_hash=principal.token_hash, revoked_at=self._now()
+            )
+        except Exception as exc:
+            raise AuthError("authentication_unavailable", 503) from exc
+
+    def validate_csrf(
+        self,
+        principal: Principal,
+        *,
+        csrf_cookie: str | None,
+        csrf_header: str | None,
+        origin: str | None,
+    ) -> None:
+        """Require the session-bound CSRF proof for browser mutations."""
+
+        if origin != self.settings.frontend_origin:
+            raise AuthError("origin_failed", 403)
         if (
             not csrf_cookie
             or not csrf_header
@@ -261,12 +286,6 @@ class AuthService:
             or not hmac.compare_digest(digest(csrf_cookie), principal.csrf_hash)
         ):
             raise AuthError("csrf_failed", 403)
-        try:
-            self._repository.revoke_session(
-                token_hash=principal.token_hash, revoked_at=self._now()
-            )
-        except Exception as exc:
-            raise AuthError("authentication_unavailable", 503) from exc
 
     def csrf_token_for(self, principal: Principal, csrf_cookie: str | None) -> str:
         """Expose only the session-bound CSRF proof to the allowlisted frontend."""

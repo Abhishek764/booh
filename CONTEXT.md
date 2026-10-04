@@ -13,7 +13,7 @@ Phase 1 — Authenticated domain foundation. The repository foundation,
 PostgreSQL/Alembic schema, Next.js application boundary, and OAuth/session
 authorization are complete. The database now includes baby-owned events,
 predictions, summaries, and external audio references. The next dependency-ready
-milestone is the authenticated event API.
+milestone is the bounded event-import API.
 
 ## Hacktoberfest 2026 challenge context
 
@@ -159,11 +159,20 @@ provider calls, storage, retention, and failure handling are not implemented.
 The public API prefix is `/api/v1`. The current routes are `GET /health`,
 `GET /auth/google`, `GET /auth/google/callback`, `POST /auth/logout`,
 authenticated `GET /auth/me`, and authenticated baby CRUD routes under
-`/babies`. Auth and baby routes remain thin and delegate to services,
+`/babies`, plus authenticated event collection/mutation routes under
+`/babies/{baby_id}/events` and `/events/{event_id}`. Auth, baby, and event routes
+remain thin and delegate to services,
 repositories, and provider abstractions. Baby repository queries always include
 the authenticated owner predicate; baby responses do not expose `user_id`.
 Requests reject unknown fields, client-supplied ownership fields, malformed IDs,
 invalid dates/timezones, and oversized bodies.
+
+Event tracking is implemented under the baby ownership boundary. The event API
+supports sleep, feed, and wake records, accepts aware timestamps or unambiguous
+local timestamps with a validated IANA timezone, stores normalized UTC values,
+and rejects impossible relationships. Event mutations require the session-bound
+CSRF proof and exact configured frontend origin. No ML or prediction behavior is
+part of event tracking.
 
 ## Frontend
 
@@ -232,6 +241,8 @@ Names only; values must never be stored here:
   deterministic browser checks (current local commit).
 - `TASK-005` — authenticated baby management API with owner-scoped CRUD and
   strict request validation (current local commit).
+- `TASK-006` — authenticated event tracking with UTC normalization, bounded
+  validation, and cross-user authorization tests (current local commit).
 
 ## Engineering Decisions
 
@@ -244,6 +255,8 @@ Names only; values must never be stored here:
 - Track work through dependency-aware IDs in `TASKS.md`.
 - Enforce baby ownership in repository predicates rather than filtering after
   loading resources.
+- Normalize event timestamps to UTC only after validating the supplied timezone;
+  reject ambiguous or nonexistent local times.
 
 ## Known Risks
 
@@ -265,18 +278,17 @@ Names only; values must never be stored here:
 
 ## Current TODO
 
-- Implement the validated sleep/feed/wake event API.
-- Define validated event contracts and Huckleberry import behavior.
+- Implement the bounded Huckleberry CSV importer.
 - Implement and evaluate the deterministic baseline before TabPFN.
 
 ## Last Completed Task
 
-Authenticated baby management API — add owner-scoped baby CRUD with strict
-request validation.
+Authenticated event tracking API — add owner-scoped sleep/feed/wake event CRUD
+with strict timestamp and value validation.
 
 ## Last Commit
 
-Local baby management completion commit; no GitHub push is required for local
+Local event tracking completion commit; no GitHub push is required for local
 progress.
 
 ## Last Security Review
@@ -285,10 +297,11 @@ Secure OAuth and baby authorization review: backend tests cover canonical route
 checks, invalid state/callbacks, expired sessions, unauthenticated requests,
 cookies, CSRF, exact-origin CORS, open redirects, provider validation, baby
 owner isolation, malformed IDs, strict request fields, invalid dates/timezones,
-bounded bodies, dependency checks, and secret review. No CRITICAL or HIGH
-findings were identified.
+bounded bodies, event ownership/list pagination, event type and timestamp
+validation, duration/feed rules, CSRF-protected mutations, dependency checks,
+and secret review. No CRITICAL or HIGH findings were identified.
 
 ## Next Recommended Task
 
-`TASK-006` — implement the validated sleep/feed/wake event API using the
-completed baby ownership boundary.
+`TASK-007` — implement the bounded Huckleberry CSV importer using the completed
+event validation boundary.

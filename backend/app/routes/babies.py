@@ -11,7 +11,11 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from fastapi import APIRouter, Depends, Request, Response
 from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator, model_validator
 
-from backend.app.dependencies import get_baby_service, get_current_principal
+from backend.app.dependencies import (
+    get_baby_service,
+    get_csrf_protected_principal,
+    get_current_principal,
+)
 from backend.app.repositories.babies import BabyRecord
 from backend.app.services.auth import Principal
 from backend.app.services.babies import BabyError, BabyService
@@ -145,7 +149,7 @@ def list_babies(
 )
 def create_baby(
     payload: BabyCreateRequest,
-    principal: Annotated[Principal, Depends(get_current_principal)],
+    principal: Annotated[Principal, Depends(get_csrf_protected_principal)],
     service: Annotated[BabyService, Depends(get_baby_service)],
 ) -> BabyResponse:
     return _response(
@@ -176,7 +180,7 @@ def get_baby(
 def patch_baby(
     baby_id: UUID,
     payload: BabyPatchRequest,
-    principal: Annotated[Principal, Depends(get_current_principal)],
+    principal: Annotated[Principal, Depends(get_csrf_protected_principal)],
     service: Annotated[BabyService, Depends(get_baby_service)],
 ) -> BabyResponse:
     return _response(
@@ -191,7 +195,7 @@ def patch_baby(
 @router.delete("/{baby_id}", status_code=204)
 def delete_baby(
     baby_id: UUID,
-    principal: Annotated[Principal, Depends(get_current_principal)],
+    principal: Annotated[Principal, Depends(get_csrf_protected_principal)],
     service: Annotated[BabyService, Depends(get_baby_service)],
 ) -> Response:
     service.delete_baby(principal, baby_id=baby_id)

@@ -55,6 +55,14 @@ phase and task ID.
 - Added strict name, date, timezone, unknown-field, malformed-ID, request-size,
   and cross-user authorization coverage.
 
+## 2026-10-04 — TASK-006
+
+- Added authenticated sleep, feed, and wake event tracking endpoints.
+- Normalized aware and unambiguous local timestamps to UTC while rejecting
+  impossible event relationships, durations, feed amounts, and future values.
+- Enforced baby-owner predicates, CSRF-protected mutations, bounded pagination,
+  strict mass-assignment boundaries, and cross-user authorization tests.
+
 ## 2026-10-04 — Secure OAuth authentication follow-up
 
 - Added canonical Google login and callback route names under `/api/v1/auth`.

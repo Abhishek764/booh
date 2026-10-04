@@ -14,8 +14,10 @@ from backend.app.models import Base, User
 from backend.app.providers.google import ExternalIdentity
 from backend.app.repositories.auth import InMemoryAuthRepository
 from backend.app.repositories.babies import SqlAlchemyBabyRepository
+from backend.app.repositories.events import SqlAlchemyEventRepository
 from backend.app.services.auth import AuthService
 from backend.app.services.babies import BabyService
+from backend.app.services.events import EventService
 from backend.tests.test_auth_service import NOW, settings
 
 
@@ -79,8 +81,12 @@ def configured_client(tmp_path: Path):
     baby_service = BabyService(
         SqlAlchemyBabyRepository(create_session_factory(engine))
     )
+    event_service = EventService(
+        SqlAlchemyEventRepository(create_session_factory(engine)), clock=lambda: NOW
+    )
     app.state.auth_service = auth_service
     app.state.baby_service = baby_service
+    app.state.event_service = event_service
     client = TestClient(app, base_url="https://testserver")
 
     def login(code: str) -> None:
@@ -92,16 +98,23 @@ def configured_client(tmp_path: Path):
         client.cookies.set(auth_service.cookie_names.session, result.session_cookie)
         client.cookies.set(auth_service.cookie_names.csrf, result.csrf_cookie)
 
+    def csrf_headers() -> dict[str, str]:
+        return {
+            "X-CSRF-Token": client.cookies.get(auth_service.cookie_names.csrf),
+            "Origin": settings().frontend_origin,
+        }
+
     try:
-        yield client, login, user_a.id, user_b.id
+        yield client, login, csrf_headers, user_a.id, user_b.id
     finally:
         client.close()
         app.state.auth_service = None
         app.state.baby_service = None
+        app.state.event_service = None
 
 
 def test_baby_crud_is_authenticated_and_owner_scoped(configured_client) -> None:
-    client, login, owner_id, other_id = configured_client
+    client, login, csrf_headers, owner_id, other_id = configured_client
     login("user-a-code")
 
     assert client.get("/api/v1/babies").json() == []
@@ -112,6 +125,7 @@ def test_baby_crud_is_authenticated_and_owner_scoped(configured_client) -> None:
             "date_of_birth": "2025-01-02",
             "timezone": "America/Los_Angeles",
         },
+        headers=csrf_headers(),
     )
     assert created.status_code == 201
     baby = created.json()
@@ -128,6 +142,7 @@ def test_baby_crud_is_authenticated_and_owner_scoped(configured_client) -> None:
     patched = client.patch(
         f"/api/v1/babies/{baby_id}",
         json={"display_name": "Updated synthetic baby", "timezone": "UTC"},
+        headers=csrf_headers(),
     )
     assert patched.status_code == 200
     assert patched.json()["display_name"] == "Updated synthetic baby"
@@ -136,9 +151,14 @@ def test_baby_crud_is_authenticated_and_owner_scoped(configured_client) -> None:
     login("user-b-code")
     assert client.get("/api/v1/babies").json() == []
     for method in ("get", "patch", "delete"):
+        request_kwargs = {}
+        if method in {"patch", "delete"}:
+            request_kwargs["headers"] = csrf_headers()
+        if method == "patch":
+            request_kwargs["json"] = {"display_name": "Attacker"}
         response = getattr(client, method)(
             f"/api/v1/babies/{baby_id}",
-            **({"json": {"display_name": "Attacker"}} if method == "patch" else {}),
+            **request_kwargs,
         )
         assert response.status_code == 404
         assert response.json()["error"] == {
@@ -148,7 +168,9 @@ def test_baby_crud_is_authenticated_and_owner_scoped(configured_client) -> None:
 
     login("user-a-code")
     assert client.get(f"/api/v1/babies/{baby_id}").status_code == 200
-    deleted = client.delete(f"/api/v1/babies/{baby_id}")
+    deleted = client.delete(
+        f"/api/v1/babies/{baby_id}", headers=csrf_headers()
+    )
     assert deleted.status_code == 204
     assert client.get(f"/api/v1/babies/{baby_id}").status_code == 404
     assert client.get("/api/v1/babies").json() == []
@@ -156,7 +178,7 @@ def test_baby_crud_is_authenticated_and_owner_scoped(configured_client) -> None:
 
 
 def test_baby_routes_require_server_session(configured_client) -> None:
-    client, _, _, _ = configured_client
+    client, _, _, _, _ = configured_client
     for method, path in (
         ("get", "/api/v1/babies"),
         ("post", "/api/v1/babies"),
@@ -172,7 +194,7 @@ def test_baby_routes_require_server_session(configured_client) -> None:
 def test_baby_request_validation_rejects_unknown_fields_bad_values_and_empty_patch(
     configured_client,
 ) -> None:
-    client, login, _, _ = configured_client
+    client, login, csrf_headers, _, _ = configured_client
     login("user-a-code")
     invalid_payloads = [
         {"user_id": "attacker", "display_name": "Should reject"},
@@ -184,29 +206,41 @@ def test_baby_request_validation_rejects_unknown_fields_bad_values_and_empty_pat
         {"date_of_birth": "2999-01-01"},
     ]
     for payload in invalid_payloads:
-        response = client.post("/api/v1/babies", json=payload)
+        response = client.post(
+            "/api/v1/babies", json=payload, headers=csrf_headers()
+        )
         assert response.status_code == 422
         assert response.json()["error"]["code"] == "invalid_request"
 
-    assert client.patch("/api/v1/babies/00000000-0000-0000-0000-000000000000", json={}).status_code == 422
+    assert client.patch(
+        "/api/v1/babies/00000000-0000-0000-0000-000000000000",
+        json={},
+        headers=csrf_headers(),
+    ).status_code == 422
     assert client.patch(
         "/api/v1/babies/00000000-0000-0000-0000-000000000000",
         json={"unknown": "field"},
+        headers=csrf_headers(),
     ).status_code == 422
     assert client.patch(
         "/api/v1/babies/00000000-0000-0000-0000-000000000000",
         json={"timezone": None},
+        headers=csrf_headers(),
     ).status_code == 422
     assert client.get("/api/v1/babies/not-a-uuid").status_code == 422
 
 
 def test_baby_request_size_is_bounded(configured_client) -> None:
-    client, login, _, _ = configured_client
+    client, login, csrf_headers, _, _ = configured_client
     login("user-a-code")
     response = client.post(
         "/api/v1/babies",
         content=b"{}",
-        headers={"content-type": "application/json", "content-length": "4097"},
+        headers={
+            **csrf_headers(),
+            "content-type": "application/json",
+            "content-length": "4097",
+        },
     )
     assert response.status_code == 413
     assert response.json()["error"]["code"] == "invalid_request"

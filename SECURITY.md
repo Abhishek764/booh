@@ -41,6 +41,9 @@ finding because a feature is early or behind a development flag.
 - Baby list, read, update, and delete queries include the authenticated user's
   ID in the database predicate. The baby API rejects client-supplied `user_id`
   fields and returns the same not-found response for missing and foreign IDs.
+- Event list/create queries verify the nested baby owner, while event update and
+  delete queries join through the baby owner. Event mutations require the
+  session-bound CSRF proof and configured origin.
 - Test horizontal access, object enumeration, deleted users, and stale sessions.
 
 ## CSRF and secure cookies
@@ -63,9 +66,10 @@ finding because a feature is early or behind a development flag.
 - `FRONTEND_ORIGIN` is one exact absolute HTTP(S) origin. Paths, queries,
   fragments, credentials, wildcards, and arbitrary browser-supplied origins are
   rejected.
-- Credentialed CORS allows only that configured origin, `GET`/`POST`, and the
-  `Content-Type`/`X-CSRF-Token` headers. Wildcard origins are never combined
-  with credentials. Production origins and redirect URIs must use HTTPS.
+- Credentialed CORS allows only that configured origin, `GET`/`POST`/`PATCH`/
+  `DELETE`, and the `Content-Type`/`X-CSRF-Token` headers. Wildcard origins are
+  never combined with credentials. Production origins and redirect URIs must
+  use HTTPS.
 - Post-login redirects always use the configured frontend origin; no `next`,
   `redirect`, or other browser-controlled destination is accepted.
 
@@ -99,6 +103,11 @@ the canonical configuration.
   behavior.
 - Normalize timestamps and reject impossible or ambiguous event data rather than
   silently changing it.
+- Event timestamps may be converted from an explicitly validated IANA timezone
+  to UTC, but ambiguous daylight-saving and nonexistent local times are rejected.
+- Event `source`, `baby_id`, ownership, and audit timestamps are server-managed;
+  clients may not mass-assign them. Feed amounts, durations, event types, and
+  start/end relationships are bounded and cross-validated.
 
 ## File upload security
 

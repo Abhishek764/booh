@@ -156,16 +156,17 @@ def test_google_callback_rejects_missing_state_and_expired_session() -> None:
 def test_configured_origin_is_the_only_credentialed_cors_origin() -> None:
     configured_app = create_app(settings())
     client = TestClient(configured_app, base_url="https://testserver")
-    allowed = client.options(
-        "/api/v1/auth/me",
-        headers={
-            "Origin": "https://frontend.example.test",
-            "Access-Control-Request-Method": "GET",
-        },
-    )
-    assert allowed.status_code == 200
-    assert allowed.headers["access-control-allow-origin"] == "https://frontend.example.test"
-    assert allowed.headers["access-control-allow-credentials"] == "true"
+    for requested_method in ("GET", "POST", "PATCH", "DELETE"):
+        allowed = client.options(
+            "/api/v1/auth/me",
+            headers={
+                "Origin": "https://frontend.example.test",
+                "Access-Control-Request-Method": requested_method,
+            },
+        )
+        assert allowed.status_code == 200
+        assert allowed.headers["access-control-allow-origin"] == "https://frontend.example.test"
+        assert allowed.headers["access-control-allow-credentials"] == "true"
 
     denied = client.options(
         "/api/v1/auth/me",

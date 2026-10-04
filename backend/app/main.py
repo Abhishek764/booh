@@ -18,8 +18,10 @@ from backend.app.routes.auth import router as auth_router
 from backend.app.config import AuthSettings, ConfigurationError
 from backend.app.middleware import AuthPrivacyMiddleware
 from backend.app.routes.babies import router as babies_router
+from backend.app.routes.events import router as events_router
 from backend.app.services.auth import AuthError
 from backend.app.services.babies import BabyError
+from backend.app.services.events import EventError
 
 API_V1_PREFIX = "/api/v1"
 APPLICATION_VERSION = "0.1.0"
@@ -88,6 +90,22 @@ async def baby_error_handler(request: Request, exc: BabyError) -> JSONResponse:
     )
 
 
+async def event_error_handler(request: Request, exc: EventError) -> JSONResponse:
+    """Return a bounded event-resource error without private event details."""
+
+    del request
+    message = {
+        "resource_not_found": "The requested resource was not found.",
+        "invalid_request": "The request could not be processed.",
+        "service_unavailable": "The service is temporarily unavailable.",
+    }.get(exc.code, "The request could not be processed.")
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": {"code": exc.code, "message": message}},
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 async def health() -> HealthResponse:
     """Report that the API process is running.
 
@@ -116,11 +134,14 @@ def create_app(auth_settings: AuthSettings | None = None) -> FastAPI:
     application.state.auth_settings = auth_settings
     application.state.auth_lock = Lock()
     application.state.baby_service = None
+    application.state.event_service = None
     application.add_exception_handler(RequestValidationError, request_validation_error_handler)
     application.add_exception_handler(AuthError, auth_error_handler)
     application.add_exception_handler(BabyError, baby_error_handler)
+    application.add_exception_handler(EventError, event_error_handler)
     application.include_router(auth_router, prefix=API_V1_PREFIX)
     application.include_router(babies_router, prefix=API_V1_PREFIX)
+    application.include_router(events_router, prefix=API_V1_PREFIX)
     application.add_api_route(
         f"{API_V1_PREFIX}/health", health, response_model=HealthResponse,
         tags=["system"], summary="Check API availability",
@@ -129,7 +150,7 @@ def create_app(auth_settings: AuthSettings | None = None) -> FastAPI:
         CORSMiddleware,
         allow_origins=[auth_settings.frontend_origin] if auth_settings else [],
         allow_credentials=True,
-        allow_methods=["GET", "POST"],
+        allow_methods=["GET", "POST", "PATCH", "DELETE"],
         allow_headers=["Content-Type", "X-CSRF-Token"],
         max_age=600,
     )
