@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import cast
 
 from fastapi import Request
+from sqlalchemy.exc import SQLAlchemyError
 
 from backend.app.config import AuthSettings, ConfigurationError
 from backend.app.database import create_database_engine, create_session_factory
@@ -13,10 +14,10 @@ from backend.app.repositories.auth import SqlAlchemyAuthRepository
 from backend.app.services.auth import AuthError, AuthService, Principal
 
 
-def build_auth_service() -> AuthService:
+def build_auth_service(settings: AuthSettings | None = None) -> AuthService:
     """Construct production auth dependencies only from validated configuration."""
 
-    settings = AuthSettings.from_environment()
+    settings = settings or AuthSettings.from_environment()
     engine = create_database_engine()
     repository = SqlAlchemyAuthRepository(create_session_factory(engine))
     provider = GoogleOAuthProvider(settings)
@@ -27,12 +28,15 @@ def get_auth_service(request: Request) -> AuthService:
     configured = getattr(request.app.state, "auth_service", None)
     if configured is not None:
         return cast(AuthService, configured)
-    try:
-        configured = build_auth_service()
-    except (ConfigurationError, RuntimeError) as exc:
-        raise AuthError("authentication_unavailable", 503) from exc
-    request.app.state.auth_service = configured
-    return configured
+    with request.app.state.auth_lock:
+        configured = getattr(request.app.state, "auth_service", None)
+        if configured is None:
+            try:
+                configured = build_auth_service(request.app.state.auth_settings)
+            except (ConfigurationError, RuntimeError, SQLAlchemyError):
+                raise AuthError("authentication_unavailable", 503) from None
+            request.app.state.auth_service = configured
+        return cast(AuthService, configured)
 
 
 def get_current_principal(request: Request) -> Principal:

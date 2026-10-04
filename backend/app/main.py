@@ -4,14 +4,19 @@ Versioned routes belong in feature-specific modules and must call services
 rather than implementing policy in the route layer.
 """
 
+import os
+from threading import Lock
 from typing import Literal
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict
 
 from backend.app.routes.auth import router as auth_router
+from backend.app.config import AuthSettings, ConfigurationError
+from backend.app.middleware import AuthPrivacyMiddleware
 from backend.app.services.auth import AuthError
 
 API_V1_PREFIX = "/api/v1"
@@ -28,19 +33,6 @@ class HealthResponse(BaseModel):
     version: str = APPLICATION_VERSION
 
 
-app = FastAPI(
-    title="BOOH API",
-    version=APPLICATION_VERSION,
-    description="Versioned API boundary for the BOOH nighttime dashboard.",
-    docs_url=None,
-    redoc_url=None,
-    openapi_url=None,
-)
-
-app.include_router(auth_router, prefix=API_V1_PREFIX)
-
-
-@app.exception_handler(RequestValidationError)
 async def request_validation_error_handler(
     request: Request, exc: RequestValidationError
 ) -> JSONResponse:
@@ -59,7 +51,6 @@ async def request_validation_error_handler(
     )
 
 
-@app.exception_handler(AuthError)
 async def auth_error_handler(request: Request, exc: AuthError) -> JSONResponse:
     """Return one bounded auth error shape without exposing provider details."""
 
@@ -79,13 +70,6 @@ async def auth_error_handler(request: Request, exc: AuthError) -> JSONResponse:
     )
 
 
-@app.get(
-    f"{API_V1_PREFIX}/health",
-    response_model=HealthResponse,
-    status_code=200,
-    tags=["system"],
-    summary="Check API availability",
-)
 async def health() -> HealthResponse:
     """Report that the API process is running.
 
@@ -95,3 +79,41 @@ async def health() -> HealthResponse:
     """
 
     return HealthResponse()
+
+
+def create_app(auth_settings: AuthSettings | None = None) -> FastAPI:
+    """Freeze security configuration once and allow exactly one browser origin."""
+    if auth_settings is None:
+        try:
+            auth_settings = AuthSettings.from_environment()
+        except ConfigurationError:
+            # An unconfigured local scaffold may serve health; auth still fails
+            # closed. Non-local and misspelled environments cannot start insecurely.
+            if os.getenv("APP_ENV", "development") not in {"development", "test"}:
+                raise
+    application = FastAPI(
+        title="BOOH API", version=APPLICATION_VERSION,
+        docs_url=None, redoc_url=None, openapi_url=None,
+    )
+    application.state.auth_settings = auth_settings
+    application.state.auth_lock = Lock()
+    application.add_exception_handler(RequestValidationError, request_validation_error_handler)
+    application.add_exception_handler(AuthError, auth_error_handler)
+    application.include_router(auth_router, prefix=API_V1_PREFIX)
+    application.add_api_route(
+        f"{API_V1_PREFIX}/health", health, response_model=HealthResponse,
+        tags=["system"], summary="Check API availability",
+    )
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=[auth_settings.frontend_origin] if auth_settings else [],
+        allow_credentials=True,
+        allow_methods=["GET", "POST"],
+        allow_headers=["Content-Type", "X-CSRF-Token"],
+        max_age=600,
+    )
+    application.add_middleware(AuthPrivacyMiddleware)
+    return application
+
+
+app = create_app()

@@ -255,6 +255,8 @@ class AuthService:
             or not csrf_header
             or len(csrf_cookie) > 128
             or len(csrf_header) > 128
+            or not csrf_cookie.isascii()
+            or not csrf_header.isascii()
             or not hmac.compare_digest(csrf_cookie, csrf_header)
             or not hmac.compare_digest(digest(csrf_cookie), principal.csrf_hash)
         ):
@@ -265,6 +267,15 @@ class AuthService:
             )
         except Exception as exc:
             raise AuthError("authentication_unavailable", 503) from exc
+
+    def csrf_token_for(self, principal: Principal, csrf_cookie: str | None) -> str:
+        """Expose only the session-bound CSRF proof to the allowlisted frontend."""
+        if (
+            not csrf_cookie or len(csrf_cookie) > 128 or not csrf_cookie.isascii()
+            or not hmac.compare_digest(digest(csrf_cookie), principal.csrf_hash)
+        ):
+            raise AuthError("csrf_failed", 403)
+        return csrf_cookie
 
     def _now(self) -> datetime:
         current = self._clock()

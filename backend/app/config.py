@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
 
@@ -20,6 +20,10 @@ class ConfigurationError(RuntimeError):
 _COOKIE_NAME = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 _SAMESITE_VALUES = frozenset({"strict", "lax", "none"})
 _GOOGLE_ISSUER = "https://accounts.google.com"
+GOOGLE_CALLBACK_PATHS = frozenset({
+    "/api/v1/auth/google/callback",
+    "/api/v1/auth/callback",  # Compatibility with existing registered clients.
+})
 
 
 def _required(name: str, values: dict[str, str | None]) -> str:
@@ -36,10 +40,33 @@ def _parse_bool(name: str, value: str) -> bool:
     return normalized == "true"
 
 
+def _validate_url(name: str, value: str, *, production: bool) -> None:
+    if any(character.isspace() for character in value) or any(
+        character in value for character in ("\\", "*", "%")
+    ):
+        raise ConfigurationError(f"{name} contains invalid URL characters")
+    try:
+        parsed = urlsplit(value)
+        port = parsed.port
+    except ValueError:
+        raise ConfigurationError(f"{name} must be a valid URL") from None
+    if (
+        parsed.scheme not in {"http", "https"}
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or (port is not None and port == 0)
+    ):
+        raise ConfigurationError(f"{name} must be an absolute HTTP(S) URL without credentials")
+    if parsed.scheme != "https" and (
+        production or parsed.hostname not in {"localhost", "127.0.0.1", "::1"}
+    ):
+        raise ConfigurationError(f"{name} must use HTTPS except for local development")
+
+
 def _validate_origin(name: str, value: str, *, production: bool) -> None:
+    _validate_url(name, value, production=production)
     parsed = urlsplit(value)
-    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-        raise ConfigurationError(f"{name} must be an absolute origin")
     if parsed.path not in {"", "/"} or parsed.query or parsed.fragment:
         raise ConfigurationError(f"{name} must not contain a path or query")
     if parsed.username or parsed.password:
@@ -49,6 +76,7 @@ def _validate_origin(name: str, value: str, *, production: bool) -> None:
 
 
 def _validate_redirect_uri(value: str, *, production: bool) -> None:
+    _validate_url("GOOGLE_OAUTH_REDIRECT_URI", value, production=production)
     parsed = urlsplit(value)
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         raise ConfigurationError("GOOGLE_OAUTH_REDIRECT_URI must be absolute")
@@ -68,13 +96,13 @@ class AuthSettings:
     """
 
     app_env: str
-    secret_key: str
+    secret_key: str = field(repr=False)
     frontend_origin: str
     session_cookie_name: str
     session_cookie_secure: bool
     session_cookie_samesite: str
     google_client_id: str
-    google_client_secret: str
+    google_client_secret: str = field(repr=False)
     google_redirect_uri: str
     google_issuer: str
     session_ttl_seconds: int = 60 * 60 * 24 * 7
@@ -84,7 +112,9 @@ class AuthSettings:
     oauth_cookie_path: str = "/api/v1/auth"
 
     def __post_init__(self) -> None:
-        production = self.app_env.lower() in {"production", "prod"}
+        if self.app_env not in {"development", "test", "staging", "production", "prod"}:
+            raise ConfigurationError("APP_ENV must be an approved environment")
+        production = self.app_env not in {"development", "test"}
         if len(self.secret_key.encode("utf-8")) < 32:
             raise ConfigurationError("SECRET_KEY must contain at least 32 bytes")
         if not _COOKIE_NAME.fullmatch(self.session_cookie_name):
@@ -95,11 +125,19 @@ class AuthSettings:
             raise ConfigurationError("SameSite=None requires Secure cookies")
         if production and not self.session_cookie_secure:
             raise ConfigurationError("SESSION_COOKIE_SECURE must be true in production")
+        if self.session_cookie_name.startswith(("__Secure-", "__Host-")) and not self.session_cookie_secure:
+            raise ConfigurationError("Prefixed cookies require Secure")
+        if self.session_cookie_name.startswith("__Host-") and (
+            self.cookie_path != "/" or self.oauth_cookie_path != "/"
+        ):
+            raise ConfigurationError("__Host- cookies require Path=/")
         _validate_origin("FRONTEND_ORIGIN", self.frontend_origin, production=production)
+        object.__setattr__(self, "frontend_origin", self.frontend_origin.rstrip("/"))
+        object.__setattr__(self, "session_cookie_samesite", self.session_cookie_samesite.lower())
         if self.google_issuer != _GOOGLE_ISSUER:
             raise ConfigurationError("GOOGLE_OAUTH_ISSUER is not an allowed issuer")
         _validate_redirect_uri(self.google_redirect_uri, production=production)
-        if urlsplit(self.google_redirect_uri).path != "/api/v1/auth/callback":
+        if urlsplit(self.google_redirect_uri).path not in GOOGLE_CALLBACK_PATHS:
             raise ConfigurationError("GOOGLE_OAUTH_REDIRECT_URI must target the callback")
         if not self.google_client_id.strip() or not self.google_client_secret.strip():
             raise ConfigurationError("Google OAuth credentials must be configured")
@@ -116,7 +154,7 @@ class AuthSettings:
 
         values = dict(os.environ if environ is None else environ)
         app_env = _required("APP_ENV", values).lower()
-        production = app_env in {"production", "prod"}
+        production = app_env not in {"development", "test"}
         secret_key = _required("SECRET_KEY", values)
         if len(secret_key.encode("utf-8")) < 32:
             raise ConfigurationError("SECRET_KEY must contain at least 32 bytes")
@@ -147,7 +185,7 @@ class AuthSettings:
         redirect_uri = _required("GOOGLE_OAUTH_REDIRECT_URI", values)
         _validate_redirect_uri(redirect_uri, production=production)
         redirect_parts = urlsplit(redirect_uri)
-        if redirect_parts.path != "/api/v1/auth/callback":
+        if redirect_parts.path not in GOOGLE_CALLBACK_PATHS:
             raise ConfigurationError("GOOGLE_OAUTH_REDIRECT_URI must target the callback")
 
         return cls(

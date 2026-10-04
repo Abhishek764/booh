@@ -20,6 +20,7 @@ class CurrentUserResponse(BaseModel):
 
     user_id: str
     email: str
+    csrf_token: str
 
 
 def _set_session_cookies(response: Response, service: AuthService, *, session: str, csrf: str, max_age: int) -> None:
@@ -55,8 +56,11 @@ def _clear_cookie(response: Response, service: AuthService, name: str, *, path: 
     )
 
 
-@router.get("/login", status_code=303, include_in_schema=True)
-def login(service: Annotated[AuthService, Depends(get_auth_service)]) -> RedirectResponse:
+@router.get("/login", status_code=303, include_in_schema=False)
+@router.get("/google", status_code=303)
+def login(request: Request, service: Annotated[AuthService, Depends(get_auth_service)]) -> RedirectResponse:
+    if request.query_params:
+        raise AuthError("invalid_callback")
     result = service.start_login()
     response = RedirectResponse(result.authorization_url, status_code=303)
     response.headers["Cache-Control"] = "no-store"
@@ -73,13 +77,20 @@ def login(service: Annotated[AuthService, Depends(get_auth_service)]) -> Redirec
     return response
 
 
-@router.get("/callback", status_code=303, include_in_schema=True)
+@router.get("/callback", status_code=303, include_in_schema=False)
+@router.get("/google/callback", status_code=303)
 def callback(
     request: Request,
     service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> RedirectResponse:
-    allowed = {"code", "state", "error", "error_description"}
-    if any(key not in allowed for key in request.query_params):
+    # Google may return these informational fields; none decide identity or redirects.
+    limits = {"code": 2048, "state": 512, "error": 128, "error_description": 512,
+              "scope": 1024, "authuser": 16, "prompt": 64, "hd": 255, "iss": 255}
+    if any(
+        key not in limits or len(value) > limits[key]
+        or len(request.query_params.getlist(key)) != 1
+        for key, value in request.query_params.multi_items()
+    ):
         # Reject unexpected callback input rather than letting it influence policy.
         raise AuthError("invalid_callback")
     error = request.query_params.get("error")
@@ -154,11 +165,16 @@ def logout(
 
 @router.get("/me", response_model=CurrentUserResponse, status_code=200)
 def current_user(
+    request: Request,
     response: Response,
+    service: Annotated[AuthService, Depends(get_auth_service)],
     principal: Annotated[Principal, Depends(get_current_principal)],
 ) -> CurrentUserResponse:
     response.headers["Cache-Control"] = "no-store"
-    return CurrentUserResponse(user_id=str(principal.user_id), email=principal.email)
+    return CurrentUserResponse(
+        user_id=str(principal.user_id), email=principal.email,
+        csrf_token=service.csrf_token_for(principal, request.cookies.get(service.cookie_names.csrf)),
+    )
 
 
 __all__ = ["router"]
