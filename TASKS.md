@@ -9,7 +9,7 @@ understood. Status values are `DONE`, `READY`, `BLOCKED`, or `PLANNED`.
 | `TASK-001` | lead | Initialize repository engineering foundation and governance. | None | Root docs, `.agent/`, `.gitignore`, `.env.example` | `DONE` | Rules, context, security policy, result templates, and task board exist; foundation commit created. | No secrets, credentials, real baby data, or real CSV exports. |
 | `TASK-002` | backend | Define the PostgreSQL schema, SQLAlchemy mappings, and Alembic workflow. | `TASK-001` | `backend/`, `docs/`, `tests/` | `DONE` | Reviewed migrations create user, identity, baby, event, prediction, summary, and external-audio-reference structures; rollback, legacy-event backfill, and isolated test database paths work. | Ownership constraints, UTC timestamps, cascading boundaries, parameterized access, no sensitive fixtures or audio binaries. |
 | `TASK-003` | frontend | Build the Next.js/React/TypeScript frontend foundation. | `TASK-001` | `frontend/`, `tests/` | `DONE` | Local frontend commands, responsive nighttime shell, accessible boundaries, theme preference, browser checks, and secure browser boundary pass. | No browser secrets, no database access, dependency review, XSS-safe rendering. |
-| `TASK-004` | backend/security | Implement the Google OAuth provider abstraction, sessions, and authorization boundary. | `TASK-002`, `TASK-003` | `backend/`, `tests/`, `SECURITY.md` | `DONE` | Login/callback/logout and ownership tests pass; invalid state, nonce, issuer, audience, and session cases fail safely. | OAuth state/nonce, CSRF, secure cookies, IDOR prevention, secret handling. |
+| `TASK-004` | backend/security | Implement the secure Google OAuth provider abstraction, sessions, and authorization boundary. | `TASK-002`, `TASK-003` | `backend/`, `tests/`, `SECURITY.md` | `DONE` | Canonical Google login/callback/logout/me routes, exact-origin CORS, session-bound CSRF, cookie flags, invalid state/callback, expiry, open-redirect, and ownership tests pass. | OAuth state/nonce, PKCE, CSRF, secure cookies, exact CORS, IDOR prevention, secret handling. |
 | `TASK-005` | backend | Implement the authenticated baby resource API. | `TASK-004` | `backend/`, `tests/`, `docs/` | `READY` | Versioned CRUD contracts, ownership enforcement, validation, and bounded errors pass. | IDOR prevention, authenticated ownership, input limits, no private data in errors/logs. |
 | `TASK-006` | backend | Implement the validated sleep/feed/wake event API. | `TASK-005` | `backend/`, `tests/`, `docs/` | `PLANNED` | Versioned event contracts, UTC normalization, filtering bounds, ownership, and validation pass. | IDOR prevention, allowlisted fields, timestamp validation, transaction safety. |
 | `TASK-007` | data/backend | Implement the bounded Huckleberry CSV importer. | `TASK-006` | `backend/`, `tests/`, `docs/` | `PLANNED` | Supported synthetic fixtures import deterministically; malformed, oversized, duplicate, and impossible rows are handled explicitly. | Upload limits, safe temporary files, formula-injection defense, deletion path, isolation. |
@@ -25,6 +25,10 @@ understood. Status values are `DONE`, `READY`, `BLOCKED`, or `PLANNED`.
 | `TASK-017` | devops | Containerize and deploy through Docker and Render. | `TASK-016` | `Dockerfile*`, `render.yaml`, `docs/`, `tests/` | `PLANNED` | Reproducible build, health checks, migrations, observability, rollback, and runtime configuration are documented. | Non-root image, no baked secrets, pinned dependencies, least privilege, secure egress. |
 
 ## Historical alignment
+
+Active TASK-004 follow-up (backend): implement canonical Google route names,
+credentialed origin allowlisting, browser-usable CSRF proof, and explicit
+database-backed authentication/security tests. Baby APIs remain TASK-005.
 
 The first implementation used the original board's numbering for scaffolding
 and database work. The current roadmap preserves the completed commits while

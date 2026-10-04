@@ -83,13 +83,16 @@ authenticated ownership path.
 
 ## Authentication
 
-Google OAuth is implemented behind a provider abstraction. The authorization
-code flow uses PKCE, fixed HTTPS provider endpoints, signed short-lived state
-cookies, server-side one-use transactions, validated issuer/audience/signature/
-nonce/claims, provider-neutral `(issuer, subject)` identity persistence, opaque
-server-side sessions, secure cookies, CSRF/origin checks, session rotation,
-idle/absolute expiry, and logout revocation. Live Google service testing remains
-pending.
+Google OAuth is implemented behind a provider abstraction. Canonical routes are
+`GET /api/v1/auth/google`, `GET /api/v1/auth/google/callback`,
+`POST /api/v1/auth/logout`, and `GET /api/v1/auth/me`. The authorization-code
+flow uses PKCE, fixed HTTPS provider endpoints, signed short-lived state cookies,
+server-side one-use transactions, validated issuer/audience/signature/nonce/
+claims, provider-neutral `(issuer, subject)` identity persistence, opaque
+server-side sessions, secure cookies, exact-origin credentialed CORS,
+session-bound CSRF, session rotation, idle/absolute expiry, and logout
+revocation. Google client secrets and provider tokens remain server-side. Live
+Google service testing remains pending.
 
 ## Data Import
 
@@ -118,10 +121,11 @@ provider calls, storage, retention, and failure handling are not implemented.
 ## API
 
 The public API prefix is `/api/v1`. The current routes are `GET /health`,
-`GET /auth/login`, `GET /auth/callback`, `POST /auth/logout`, and authenticated
-`GET /auth/me` under that prefix. Auth routes remain thin and delegate to
-services, repositories, and provider abstractions. Auth responses are bounded,
-non-enumerating, and marked `no-store` where identity or flow state is present.
+`GET /auth/google`, `GET /auth/google/callback`, `POST /auth/logout`, and
+authenticated `GET /auth/me` under that prefix. Auth routes remain thin and
+delegate to services, repositories, and provider abstractions. Auth responses
+are bounded, non-enumerating, protected by exact-origin credentialed CORS, and
+marked `no-store` on the auth surface.
 
 ## Frontend
 
@@ -182,6 +186,8 @@ Names only; values must never be stored here:
 - Roadmap `TASK-003` — application boundary and frontend scaffold (`3d7c696`).
 - Roadmap `TASK-004` — Google OAuth, sessions, and authorization boundary
   (local completion commit for this milestone).
+- Secure Google OAuth follow-up — canonical routes, exact-origin CORS, and
+  explicit callback/session security tests (current local commits).
 - Database foundation expansion — babies, events, predictions, summaries, and
   external audio references (current local commit).
 - Frontend foundation — responsive nighttime shell, accessible boundaries, and
@@ -212,6 +218,8 @@ Names only; values must never be stored here:
 - ML and generated summaries must not be interpreted as medical guidance.
 - Frontend browser state is limited to the display theme until authenticated
   domain state is introduced behind the API service boundary.
+- Google OAuth uses a fixed callback allowlist and never accepts browser-chosen
+  redirect destinations.
 
 ## Current TODO
 
@@ -230,10 +238,11 @@ local progress.
 
 ## Last Security Review
 
-Frontend foundation review: lint, typecheck, production build, dependency
-audit, secret review, and 8 desktop/mobile browser checks passed. The shell
-makes no API requests and renders React-escaped text only. No CRITICAL or HIGH
-findings were identified.
+Secure OAuth review: 45 backend tests, canonical route checks, invalid state and
+callback checks, expired-session and unauthenticated `/me` checks, cookie and
+CSRF checks, exact-origin CORS checks, open-redirect rejection, provider
+validation, owner isolation, dependency checks, and secret review passed. No
+CRITICAL or HIGH findings were identified.
 
 ## Next Recommended Task
 

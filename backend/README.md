@@ -23,5 +23,13 @@ python3 -m venv .venv
 
 The supported server entrypoint disables Uvicorn access logging because its
 default request-line formatter would expose OAuth callback query parameters.
-The API exposes the versioned health route and authenticated OAuth/session
-routes; OpenAPI and interactive documentation remain disabled.
+The canonical authentication routes are:
+
+- `GET /api/v1/auth/google`
+- `GET /api/v1/auth/google/callback`
+- `POST /api/v1/auth/logout`
+- `GET /api/v1/auth/me`
+
+The configured `FRONTEND_ORIGIN` is the only credentialed CORS origin. The
+server keeps the session cookie HttpOnly and returns only a session-bound CSRF
+proof from `/auth/me`. OpenAPI and interactive documentation remain disabled.

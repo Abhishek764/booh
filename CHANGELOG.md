@@ -47,6 +47,15 @@ phase and task ID.
 - Added a reviewed Alembic migration that backfills legacy events into a UTC
   profile per existing user and passes isolated upgrade/check/rollback tests.
 
+## 2026-10-04 — Secure OAuth authentication follow-up
+
+- Added canonical Google login and callback route names under `/api/v1/auth`.
+- Added exact-origin credentialed CORS, session-bound CSRF proof on `/auth/me`,
+  and privacy headers on the authentication surface.
+- Added explicit route security coverage for invalid state/callbacks, expired
+  sessions, unauthenticated identity, open redirects, cookies, CORS, and
+  cross-user access.
+
 ## 2026-10-04 — TASK-001
 
 - Initialized the BOOH engineering foundation.

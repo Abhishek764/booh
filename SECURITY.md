@@ -21,6 +21,10 @@ finding because a feature is early or behind a development flag.
 
 - Use Google OAuth through a backend provider abstraction; do not implement
   provider protocol details in route handlers or the frontend.
+- The canonical browser endpoints are `GET /api/v1/auth/google`,
+  `GET /api/v1/auth/google/callback`, `POST /api/v1/auth/logout`, and
+  `GET /api/v1/auth/me`. The server owns the authorization code exchange,
+  provider tokens, identity validation, and session creation.
 - Validate issuer, audience, redirect URI, nonce, token signature, expiry, and
   required claims. Do not accept an identity supplied only by the browser.
 - Create or resolve the local user only after successful provider validation.
@@ -46,12 +50,32 @@ finding because a feature is early or behind a development flag.
   or security-sensitive changes.
 - Validate OAuth `state` and `nonce` values server-side, bind them to the
   initiating session, make them single-use, and expire them quickly.
+- The session cookie is `HttpOnly` and is never returned in JSON. The CSRF
+  cookie is not `HttpOnly` by design so a same-origin frontend can copy its
+  opaque value into `X-CSRF-Token`; authenticated `/api/v1/auth/me` returns the
+  same session-bound proof for an explicitly allowlisted cross-origin frontend.
+
+## CORS and browser origins
+
+- `FRONTEND_ORIGIN` is one exact absolute HTTP(S) origin. Paths, queries,
+  fragments, credentials, wildcards, and arbitrary browser-supplied origins are
+  rejected.
+- Credentialed CORS allows only that configured origin, `GET`/`POST`, and the
+  `Content-Type`/`X-CSRF-Token` headers. Wildcard origins are never combined
+  with credentials. Production origins and redirect URIs must use HTTPS.
+- Post-login redirects always use the configured frontend origin; no `next`,
+  `redirect`, or other browser-controlled destination is accepted.
 
 ## OAuth state validation
 
 The callback must reject missing, expired, reused, mismatched, or
 cross-session `state` values and invalid `nonce` values. Do not use an open
 redirect or allow a callback URL from an untrusted request parameter.
+
+The configured Google redirect URI must target the fixed
+`/api/v1/auth/google/callback` path. The legacy `/api/v1/auth/callback` path is
+accepted only for existing explicitly registered clients and is not used as
+the canonical configuration.
 
 ## Secrets management
 
@@ -125,6 +149,10 @@ redirect or allow a callback URL from an untrusted request parameter.
   payloads before logging.
 - Define retention, access controls, deletion, and incident response before
   production data is accepted.
+- Authentication responses use `Cache-Control: no-store`,
+  `Referrer-Policy: no-referrer`, and `X-Content-Type-Options: nosniff` on the
+  auth surface. The supported Uvicorn entrypoint disables raw access logs so
+  callback codes and state values do not enter request-line logs.
 
 ## LLM prompt injection
 
