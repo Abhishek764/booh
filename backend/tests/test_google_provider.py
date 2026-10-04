@@ -49,7 +49,7 @@ def provider_fixture() -> tuple[GoogleOAuthProvider, rsa.RSAPrivateKey]:
         session_cookie_samesite="strict",
         google_client_id="synthetic-client-id",
         google_client_secret="synthetic-client-secret",
-        google_redirect_uri="https://api.example.test/api/v1/auth/callback",
+        google_redirect_uri="https://api.example.test/api/v1/auth/google/callback",
         google_issuer="https://accounts.google.com",
     )
     return GoogleOAuthProvider(
@@ -102,7 +102,7 @@ def test_authorization_url_binds_s256_pkce_and_fixed_redirect() -> None:
     assert query["code_challenge"] == ["C" * 43]
     assert query["code_challenge_method"] == ["S256"]
     assert query["redirect_uri"] == [
-        "https://api.example.test/api/v1/auth/callback"
+        "https://api.example.test/api/v1/auth/google/callback"
     ]
 
 

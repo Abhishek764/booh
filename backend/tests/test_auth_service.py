@@ -67,7 +67,7 @@ def settings() -> AuthSettings:
         session_cookie_samesite="strict",
         google_client_id="synthetic-client-id",
         google_client_secret="synthetic-client-secret",
-        google_redirect_uri="https://api.example.test/api/v1/auth/callback",
+        google_redirect_uri="https://api.example.test/api/v1/auth/google/callback",
         google_issuer="https://accounts.google.com",
     )
 
@@ -299,11 +299,11 @@ def test_settings_fail_closed_for_missing_and_insecure_production_values() -> No
         "SESSION_COOKIE_SAMESITE": "lax",
         "GOOGLE_OAUTH_CLIENT_ID": "synthetic-client-id",
         "GOOGLE_OAUTH_CLIENT_SECRET": "synthetic-client-secret",
-        "GOOGLE_OAUTH_REDIRECT_URI": "https://api.example.test/api/v1/auth/callback",
+        "GOOGLE_OAUTH_REDIRECT_URI": "https://api.example.test/api/v1/auth/google/callback",
         "GOOGLE_OAUTH_ISSUER": "https://accounts.google.com",
     }
     with pytest.raises(RuntimeError, match="SESSION_COOKIE_SECURE"):
         AuthSettings.from_environment(environment)
     environment["SESSION_COOKIE_SECURE"] = "true"
     configured = AuthSettings.from_environment(environment)
-    assert configured.google_redirect_uri.endswith("/api/v1/auth/callback")
+    assert configured.google_redirect_uri.endswith("/api/v1/auth/google/callback")
