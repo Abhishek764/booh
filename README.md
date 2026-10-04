@@ -6,8 +6,9 @@ wake-up is likely and roughly how much time remains.
 
 ## Project status
 
-This repository is currently the engineering foundation only. Application
-functionality has not been implemented. OAuth, database models, Huckleberry
+This repository currently contains the engineering foundation and application
+boundaries. The backend exposes only a versioned health check and the frontend
+contains a minimal accessible shell. OAuth, database models, Huckleberry
 import, TabPFN, Gemma, ElevenLabs, the dashboard, and deployment are tracked as
 future tasks in [`TASKS.md`](TASKS.md).
 
@@ -72,9 +73,38 @@ before modifying the project. Security and privacy requirements are defined in
 
 ## Local setup
 
-The application has not been scaffolded yet. When environment configuration is
-introduced, copy the names-only contract from `.env.example` into a local
-`.env`; never commit the local file or real credentials.
+The backend requires Python 3.12 or newer and the frontend requires Node.js
+20.9 or newer. When environment configuration is introduced, copy the
+names-only contract from `.env.example` into a local `.env`; never commit the
+local file or real credentials.
+
+### Backend
+
+```text
+python3 -m venv .venv
+.venv/bin/python -m pip install -r backend/requirements-dev.txt
+.venv/bin/python -m pytest
+.venv/bin/python -m uvicorn backend.app.main:app --reload
+```
+
+The health check is available at `GET /api/v1/health`. API documentation is
+disabled during the scaffold phase until authenticated, domain-specific routes
+are introduced.
+
+### Frontend
+
+```text
+cd frontend
+npm install
+npm run dev
+npm run test
+npm run lint
+npm run typecheck
+npm run build
+```
+
+The frontend does not contain provider credentials, database access, or
+prediction policy.
 
 ## Contribution workflow
 

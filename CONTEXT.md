@@ -9,9 +9,10 @@ uncertain, and not medical advice.
 
 ## Current Phase
 
-Phase 0 — Engineering foundation. The repository contains project rules,
-security guidance, planning artifacts, and empty ownership boundaries. No
-application functionality has been implemented.
+Phase 0 — Engineering foundation and application boundaries. The repository
+contains the project rules, security guidance, planning artifacts, a minimal
+FastAPI boundary with a versioned health check, and a minimal Next.js frontend
+shell. Domain functionality has not been implemented.
 
 ## Architecture
 
@@ -105,15 +106,16 @@ provider calls, storage, retention, and failure handling are not implemented.
 
 ## API
 
-The planned public API prefix is `/api/v1`. Route handlers will remain thin and
-delegate to services, repositories, and the database according to the rules in
-`AGENTS.md`. No API endpoints exist yet.
+The public API prefix is `/api/v1`. The scaffold exposes only
+`GET /api/v1/health`; it does not query a database or expose private runtime
+details. Route handlers will remain thin and delegate to services, repositories,
+and the database according to the rules in `AGENTS.md`.
 
 ## Frontend
 
-Next.js, React, and TypeScript are planned. No dashboard or client behavior has
-been implemented. The browser must not receive provider secrets or access the
-database directly.
+Next.js, React, and TypeScript are scaffolded with an accessible shell and no
+domain client behavior. The browser must not receive provider secrets or access
+the database directly.
 
 ## Deployment
 
@@ -179,7 +181,6 @@ Names only; values must never be stored here:
 
 ## Current TODO
 
-- Scaffold backend and frontend applications without bypassing the layer rules.
 - Define the initial privacy-preserving PostgreSQL schema and Alembic workflow.
 - Implement authentication and authorization with security tests.
 - Define validated event contracts and Huckleberry import behavior.
@@ -187,19 +188,21 @@ Names only; values must never be stored here:
 
 ## Last Completed Task
 
-Repository engineering foundation and project governance documentation.
+`TASK-002` — scaffold backend and frontend application boundaries with
+health-check and test infrastructure.
 
 ## Last Commit
 
-`chore: initialize BOOH repository` (hash reported in the task completion
-report).
+Local `TASK-002` completion commit (hash reported in the completion report); no
+GitHub push is required for this task.
 
 ## Last Security Review
 
-Initial foundation review: repository hygiene, secret exclusion, architecture
-boundaries, and security policy completed for this phase.
+TASK-002 review: repository hygiene, secret exclusion, architecture boundaries,
+bounded errors, dependency pins, and frontend audit completed. No CRITICAL or
+HIGH findings remain in the scaffold.
 
 ## Next Recommended Task
 
-`TASK-002` — scaffold the backend and frontend application boundaries with
-health-check/test infrastructure only.
+`TASK-003` — define the initial PostgreSQL schema, SQLAlchemy mappings, and
+Alembic workflow.

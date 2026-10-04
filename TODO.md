@@ -3,9 +3,9 @@
 The authoritative dependency-aware task board is [`TASKS.md`](TASKS.md). This
 file is a short current-phase view.
 
-## Current phase: engineering foundation
+## Current phase: engineering foundation and application boundaries
 
-- [ ] Scaffold backend and frontend application boundaries (`TASK-002`).
+- [x] Scaffold backend and frontend application boundaries (`TASK-002`).
 - [ ] Define the initial PostgreSQL schema and Alembic workflow (`TASK-003`).
 - [ ] Implement authentication and ownership enforcement (`TASK-004`).
 - [ ] Define validated event contracts and Huckleberry import behavior
