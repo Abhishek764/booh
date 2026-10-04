@@ -10,8 +10,10 @@ uncertain, and not medical advice.
 ## Current Phase
 
 Phase 1 — Authenticated domain foundation. The repository foundation,
-PostgreSQL/Alembic schema, and Next.js application boundary are complete. The
-next dependency-ready milestone is OAuth and session authorization.
+PostgreSQL/Alembic schema, Next.js application boundary, and OAuth/session
+authorization are complete. The database now includes baby-owned events,
+predictions, summaries, and external audio references. The next dependency-ready
+milestone is the authenticated baby resource API.
 
 ## Architecture
 
@@ -70,10 +72,14 @@ TASKS.md       Dependency-aware task board
 ## Database
 
 PostgreSQL is the production database target, accessed through SQLAlchemy with
-Alembic migrations. The initial migration creates only `users` and `events`,
-with UUID keys, UTC-aware timestamps, ownership foreign keys, allowlisted event
-values, and duration constraints. No production data exists. All user-scoped
-access will enforce an authenticated ownership boundary.
+Alembic migrations. The schema includes provider-neutral `users` and
+`user_identities`, user-owned `babies`, baby-owned `events` and `predictions`,
+prediction-linked `summaries`, and summary-linked external `audio` references.
+Events support sleep/feed/wake types, UTC start/end times, duration, and feed
+amount where applicable. Predictions retain explicit baseline/model/feature
+versions and bounded feature metadata. Audio bytes are stored outside the
+database. No production data exists. All user-scoped access will enforce the
+authenticated ownership path.
 
 ## Authentication
 
@@ -173,6 +179,8 @@ Names only; values must never be stored here:
 - Roadmap `TASK-003` — application boundary and frontend scaffold (`3d7c696`).
 - Roadmap `TASK-004` — Google OAuth, sessions, and authorization boundary
   (local completion commit for this milestone).
+- Database foundation expansion — babies, events, predictions, summaries, and
+  external audio references (current local commit).
 
 ## Engineering Decisions
 
@@ -191,33 +199,38 @@ Names only; values must never be stored here:
 - OAuth/session implementation can create account-linking or IDOR risks; the
   completed boundary is covered by deterministic tests but needs live-service
   and deployment review.
+- Legacy event migration uses a UTC baby profile when pre-baby events exist;
+  product/API work must provide an explicit profile and timezone workflow for
+  new baby records.
 - CSV parsing and LLM inputs are untrusted boundaries.
 - Provider availability, cost, and data handling need review before integration.
 - ML and generated summaries must not be interpreted as medical guidance.
 
 ## Current TODO
 
+- Implement the authenticated baby resource API.
 - Define validated event contracts and Huckleberry import behavior.
 - Implement and evaluate the deterministic baseline before TabPFN.
 
 ## Last Completed Task
 
-Roadmap `TASK-004` — implement the Google OAuth provider abstraction, sessions,
-and authorization boundary.
+Database foundation expansion — implement baby-owned history and prediction
+storage with SQLAlchemy/Alembic.
 
 ## Last Commit
 
-Local TASK-004 completion commit; no GitHub push is required for local progress.
+Local database foundation completion commit; no GitHub push is required for
+local progress.
 
 ## Last Security Review
 
-TASK-004 final security review: 37 backend tests, OAuth state/nonce/PKCE and
-session checks, ownership checks, migration upgrade/check/rollback, supported
-server logging probe, dependency checks, and secret review passed. No CRITICAL
-or HIGH findings remain. Residual medium/low risks include unavailable live
-Google/PostgreSQL smoke tests, deployment egress/DNS enforcement, rate limiting,
-and the lack of hash-locked dependency artifacts.
+Database foundation review: 42 backend tests, relationship/ownership/cascade
+checks, constraint and index checks, legacy-event migration backfill,
+Alembic upgrade/check/rollback, dependency checks, and secret review passed.
+No CRITICAL or HIGH findings were identified. Live PostgreSQL testing remains
+unavailable in this environment.
 
 ## Next Recommended Task
 
-`TASK-005` — implement the authenticated baby resource API.
+`TASK-005` — implement the authenticated baby resource API using the completed
+ownership schema.

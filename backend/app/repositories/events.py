@@ -7,7 +7,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from backend.app.models import Event
+from backend.app.models import Baby, Event
 
 
 class EventRepository:
@@ -18,7 +18,9 @@ class EventRepository:
         session: Session, *, event_id: uuid.UUID, owner_id: uuid.UUID
     ) -> Event | None:
         return session.scalar(
-            select(Event).where(Event.id == event_id, Event.user_id == owner_id)
+            select(Event)
+            .join(Baby, Event.baby_id == Baby.id)
+            .where(Event.id == event_id, Baby.user_id == owner_id)
         )
 
 

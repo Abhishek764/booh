@@ -11,7 +11,7 @@ import os
 from collections.abc import Iterator
 from contextlib import contextmanager
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -30,12 +30,25 @@ def create_database_engine(database_url: str | None = None) -> Engine:
 
     url = get_database_url(database_url)
     connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
-    return create_engine(
+    engine = create_engine(
         url,
         connect_args=connect_args,
         pool_pre_ping=True,
         echo=False,
     )
+    if url.startswith("sqlite"):
+        event.listen(engine, "connect", _enable_sqlite_foreign_keys)
+    return engine
+
+
+def _enable_sqlite_foreign_keys(dbapi_connection: object, _: object) -> None:
+    """Make the isolated SQLite test strategy enforce PostgreSQL-like FKs."""
+
+    cursor = dbapi_connection.cursor()
+    try:
+        cursor.execute("PRAGMA foreign_keys=ON")
+    finally:
+        cursor.close()
 
 
 def create_session_factory(engine: Engine) -> sessionmaker[Session]:

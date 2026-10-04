@@ -37,6 +37,16 @@ phase and task ID.
 - Added deterministic OAuth, migration, ownership, logging, and dependency
   security checks.
 
+## 2026-10-04 — Database foundation expansion
+
+- Added baby profiles and moved event ownership from users to babies.
+- Added sleep/feed/wake event start/end fields, duration, feed amount checks,
+  UTC-aware timestamps, ownership indexes, and cascade boundaries.
+- Added prediction, summary, and external audio-reference tables with model
+  provenance, bounded summaries, storage references, and retention timestamps.
+- Added a reviewed Alembic migration that backfills legacy events into a UTC
+  profile per existing user and passes isolated upgrade/check/rollback tests.
+
 ## 2026-10-04 — TASK-001
 
 - Initialized the BOOH engineering foundation.

@@ -7,7 +7,7 @@ understood. Status values are `DONE`, `READY`, `BLOCKED`, or `PLANNED`.
 | ID | Owner | Description | Dependencies | Files | Status | Acceptance Criteria | Security Requirements |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | `TASK-001` | lead | Initialize repository engineering foundation and governance. | None | Root docs, `.agent/`, `.gitignore`, `.env.example` | `DONE` | Rules, context, security policy, result templates, and task board exist; foundation commit created. | No secrets, credentials, real baby data, or real CSV exports. |
-| `TASK-002` | backend | Define the PostgreSQL schema, SQLAlchemy mappings, and Alembic workflow. | `TASK-001` | `backend/`, `docs/`, `tests/` | `DONE` | Reviewed migration creates approved user/event structures; rollback and isolated test database paths work. | Ownership constraints, UTC timestamps, parameterized access, no sensitive fixtures. |
+| `TASK-002` | backend | Define the PostgreSQL schema, SQLAlchemy mappings, and Alembic workflow. | `TASK-001` | `backend/`, `docs/`, `tests/` | `DONE` | Reviewed migrations create user, identity, baby, event, prediction, summary, and external-audio-reference structures; rollback, legacy-event backfill, and isolated test database paths work. | Ownership constraints, UTC timestamps, cascading boundaries, parameterized access, no sensitive fixtures or audio binaries. |
 | `TASK-003` | frontend | Scaffold the Next.js/React/TypeScript application boundary. | `TASK-001` | `frontend/`, `tests/` | `DONE` | Local frontend commands, health-path contract, baseline checks, and secure browser boundary pass. | No browser secrets, no database access, dependency review, XSS-safe rendering. |
 | `TASK-004` | backend/security | Implement the Google OAuth provider abstraction, sessions, and authorization boundary. | `TASK-002`, `TASK-003` | `backend/`, `tests/`, `SECURITY.md` | `DONE` | Login/callback/logout and ownership tests pass; invalid state, nonce, issuer, audience, and session cases fail safely. | OAuth state/nonce, CSRF, secure cookies, IDOR prevention, secret handling. |
 | `TASK-005` | backend | Implement the authenticated baby resource API. | `TASK-004` | `backend/`, `tests/`, `docs/` | `READY` | Versioned CRUD contracts, ownership enforcement, validation, and bounded errors pass. | IDOR prevention, authenticated ownership, input limits, no private data in errors/logs. |
@@ -33,6 +33,8 @@ aligning the names above:
 - Roadmap `TASK-002` (database) is implemented by `2779601`.
 - Roadmap `TASK-003` (frontend/application boundary) is implemented by
   `3d7c696`.
+- The database foundation was expanded in the current local commit with
+  `0003_domain_database_foundation`.
 
 ## Task workflow
 
