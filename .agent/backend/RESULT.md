@@ -1,12 +1,12 @@
 # Backend Agent Result
 
-TASK: TASK-002
+TASK: TASK-003
 STATUS: COMPLETE
-FILES CHANGED: backend/__init__.py, backend/app/, backend/tests/, backend/requirements.txt, backend/requirements-dev.txt, pyproject.toml
-API CHANGES: Added GET /api/v1/health with an explicit response schema; disabled interactive OpenAPI routes during the scaffold phase.
-DATABASE CHANGES: None.
-TESTS: `.venv/bin/python -m pytest` — 3 passed.
-SECURITY: No secrets or private data; bounded validation errors; pinned backend dependencies; no CRITICAL or HIGH findings identified in the scaffold review.
-COMMIT: Local TASK-002 completion commit; hash reported in the completion report.
-KNOWN ISSUES: A Starlette TestClient dependency deprecation warning is emitted by the pinned test stack.
-NEXT DEPENDENCY: TASK-003 — PostgreSQL schema and Alembic workflow.
+FILES CHANGED: backend/app/database.py, backend/app/models.py, backend/alembic.ini, backend/alembic/, backend/tests/test_database.py, backend/tests/test_migrations.py, backend/requirements.txt, docs/database.md
+API CHANGES: None.
+DATABASE CHANGES: Added the initial users/events SQLAlchemy mappings and Alembic migration with owner foreign keys, UTC-aware timestamps, allowlisted event values, and duration constraints.
+TESTS: `.venv/bin/python -m pytest` — 9 passed; isolated Alembic upgrade/rollback, `alembic check`, `pip check`, and `pip-audit --local --strict` passed.
+SECURITY: No secrets or private data; database URL is required explicitly; user ownership is enforced by a non-null foreign key; no raw SQL from user input; pip-audit reported no known vulnerabilities.
+COMMIT: Local TASK-003 completion commit; hash reported in the completion report.
+KNOWN ISSUES: PostgreSQL integration was validated through dialect compilation; no PostgreSQL service is available in this environment for a live connection test. Starlette emits deprecation warnings for its legacy httpx TestClient bridge.
+NEXT DEPENDENCY: TASK-004 — Google OAuth provider abstraction, sessions, and authorization.

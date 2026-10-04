@@ -181,28 +181,28 @@ Names only; values must never be stored here:
 
 ## Current TODO
 
-- Define the initial privacy-preserving PostgreSQL schema and Alembic workflow.
 - Implement authentication and authorization with security tests.
 - Define validated event contracts and Huckleberry import behavior.
 - Implement and evaluate the deterministic baseline before TabPFN.
 
 ## Last Completed Task
 
-`TASK-002` — scaffold backend and frontend application boundaries with
-health-check and test infrastructure.
+`TASK-003` — define the initial PostgreSQL schema, SQLAlchemy mappings, and
+Alembic workflow.
 
 ## Last Commit
 
-Local `TASK-002` completion commit (hash reported in the completion report); no
+Local `TASK-003` completion commit (hash reported in the completion report); no
 GitHub push is required for this task.
 
 ## Last Security Review
 
-TASK-002 review: repository hygiene, secret exclusion, architecture boundaries,
-bounded errors, dependency pins, and frontend audit completed. No CRITICAL or
-HIGH findings remain in the scaffold.
+TASK-003 review: owner foreign keys, UTC-aware timestamps, allowlisted event
+values, explicit database configuration, migration rollback, isolated test
+database behavior, and pinned Python dependencies reviewed. `pip-audit`
+reported no known vulnerabilities.
 
 ## Next Recommended Task
 
-`TASK-003` — define the initial PostgreSQL schema, SQLAlchemy mappings, and
-Alembic workflow.
+`TASK-004` — implement the Google OAuth provider abstraction, sessions, and
+authorization boundary.

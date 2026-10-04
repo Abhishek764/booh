@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+github_pat_*
 *.pem
 *.key
 *.p12

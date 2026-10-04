@@ -17,6 +17,14 @@ phase and task ID.
 - Pinned dependencies and verified the frontend dependency audit has no known
   vulnerabilities.
 
+## 2026-10-04 — TASK-003
+
+- Added the initial SQLAlchemy users/events mappings and PostgreSQL-compatible
+  Alembic migration.
+- Added explicit owner foreign keys, UTC-aware timestamps, allowlisted event
+  values, and non-negative duration constraints.
+- Added isolated SQLite upgrade/rollback tests and PostgreSQL DDL checks.
+
 ## 2026-10-04 — TASK-001
 
 - Initialized the BOOH engineering foundation.
