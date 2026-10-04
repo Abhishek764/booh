@@ -17,7 +17,9 @@ from pydantic import BaseModel, ConfigDict
 from backend.app.routes.auth import router as auth_router
 from backend.app.config import AuthSettings, ConfigurationError
 from backend.app.middleware import AuthPrivacyMiddleware
+from backend.app.routes.babies import router as babies_router
 from backend.app.services.auth import AuthError
+from backend.app.services.babies import BabyError
 
 API_V1_PREFIX = "/api/v1"
 APPLICATION_VERSION = "0.1.0"
@@ -70,6 +72,22 @@ async def auth_error_handler(request: Request, exc: AuthError) -> JSONResponse:
     )
 
 
+async def baby_error_handler(request: Request, exc: BabyError) -> JSONResponse:
+    """Return a bounded baby-resource error without ownership details."""
+
+    del request
+    message = {
+        "resource_not_found": "The requested resource was not found.",
+        "invalid_request": "The request could not be processed.",
+        "service_unavailable": "The service is temporarily unavailable.",
+    }.get(exc.code, "The request could not be processed.")
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": {"code": exc.code, "message": message}},
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 async def health() -> HealthResponse:
     """Report that the API process is running.
 
@@ -97,9 +115,12 @@ def create_app(auth_settings: AuthSettings | None = None) -> FastAPI:
     )
     application.state.auth_settings = auth_settings
     application.state.auth_lock = Lock()
+    application.state.baby_service = None
     application.add_exception_handler(RequestValidationError, request_validation_error_handler)
     application.add_exception_handler(AuthError, auth_error_handler)
+    application.add_exception_handler(BabyError, baby_error_handler)
     application.include_router(auth_router, prefix=API_V1_PREFIX)
+    application.include_router(babies_router, prefix=API_V1_PREFIX)
     application.add_api_route(
         f"{API_V1_PREFIX}/health", health, response_model=HealthResponse,
         tags=["system"], summary="Check API availability",

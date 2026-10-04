@@ -30,6 +30,17 @@ The canonical authentication routes are:
 - `POST /api/v1/auth/logout`
 - `GET /api/v1/auth/me`
 
+The authenticated baby profile routes are:
+
+- `GET /api/v1/babies`
+- `POST /api/v1/babies`
+- `GET /api/v1/babies/{baby_id}`
+- `PATCH /api/v1/babies/{baby_id}`
+- `DELETE /api/v1/babies/{baby_id}`
+
 The configured `FRONTEND_ORIGIN` is the only credentialed CORS origin. The
 server keeps the session cookie HttpOnly and returns only a session-bound CSRF
-proof from `/auth/me`. OpenAPI and interactive documentation remain disabled.
+proof from `/auth/me`. Baby queries always include the authenticated session
+owner in the repository predicate; request bodies reject `user_id`, unknown
+fields, malformed IDs, invalid dates, invalid IANA timezones, and oversized
+payloads. OpenAPI and interactive documentation remain disabled.

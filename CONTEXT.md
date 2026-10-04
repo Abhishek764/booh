@@ -13,7 +13,43 @@ Phase 1 — Authenticated domain foundation. The repository foundation,
 PostgreSQL/Alembic schema, Next.js application boundary, and OAuth/session
 authorization are complete. The database now includes baby-owned events,
 predictions, summaries, and external audio references. The next dependency-ready
-milestone is the authenticated baby resource API.
+milestone is the authenticated event API.
+
+## Hacktoberfest 2026 challenge context
+
+The immediate external goal is Hacktoberfest 2026 Challenge 1, “Build for a
+Friend.” The supplied challenge announcement requires a real project built for
+one real person, with open-source AI materially involved, and a DEV write-up
+showing the person, demo, process, and why open innovation matters. The stated
+submission deadline is October 5, 2026 at 06:59 UTC.
+
+Honest status: BOOH is currently a foundation, not a valid submission. It has a
+strong privacy and new-parent problem statement, but it does not yet have a
+working prediction flow, open-source AI feature, usable dashboard, friend test,
+or submission evidence. Secure OAuth is valuable engineering but is not by
+itself evidence of meeting this challenge.
+
+Challenge scope decision:
+
+- Freeze additional OAuth work while the challenge slice is considered.
+- Build only a narrow end-to-end slice if a real friend is available to test it:
+  authorized local event input, the explicit deterministic seven-day baseline,
+  one meaningful open-weight model feature, uncertainty-aware presentation, and
+  a short friend feedback loop.
+- Do not claim that an open model made the prediction if it only summarizes a
+  validated prediction. The current Gemma policy remains: short validated
+  summaries only, with no authorization, database decisions, medical advice,
+  or invented certainty.
+- Do not commit real family data. Use consented local data for a demo and
+  synthetic data for tests and repository artifacts.
+- If no real friend can test the result in the timebox, do not pretend BOOH
+  satisfies “Build for a Friend”; preserve the project for a later, stronger
+  submission instead.
+
+Before implementing this slice, start an explicit task that resolves whether
+the open-weight model is a meaningful approved model component or only a
+bounded summary feature. The deterministic baseline must remain the explicit
+comparison and safety boundary.
 
 ## Architecture
 
@@ -121,11 +157,13 @@ provider calls, storage, retention, and failure handling are not implemented.
 ## API
 
 The public API prefix is `/api/v1`. The current routes are `GET /health`,
-`GET /auth/google`, `GET /auth/google/callback`, `POST /auth/logout`, and
-authenticated `GET /auth/me` under that prefix. Auth routes remain thin and
-delegate to services, repositories, and provider abstractions. Auth responses
-are bounded, non-enumerating, protected by exact-origin credentialed CORS, and
-marked `no-store` on the auth surface.
+`GET /auth/google`, `GET /auth/google/callback`, `POST /auth/logout`,
+authenticated `GET /auth/me`, and authenticated baby CRUD routes under
+`/babies`. Auth and baby routes remain thin and delegate to services,
+repositories, and provider abstractions. Baby repository queries always include
+the authenticated owner predicate; baby responses do not expose `user_id`.
+Requests reject unknown fields, client-supplied ownership fields, malformed IDs,
+invalid dates/timezones, and oversized bodies.
 
 ## Frontend
 
@@ -192,6 +230,8 @@ Names only; values must never be stored here:
   external audio references (current local commit).
 - Frontend foundation — responsive nighttime shell, accessible boundaries, and
   deterministic browser checks (current local commit).
+- `TASK-005` — authenticated baby management API with owner-scoped CRUD and
+  strict request validation (current local commit).
 
 ## Engineering Decisions
 
@@ -202,6 +242,8 @@ Names only; values must never be stored here:
 - Restrict Gemma to validated, short summaries.
 - Use names-only environment examples and prohibit secrets in Git.
 - Track work through dependency-aware IDs in `TASKS.md`.
+- Enforce baby ownership in repository predicates rather than filtering after
+  loading resources.
 
 ## Known Risks
 
@@ -223,28 +265,30 @@ Names only; values must never be stored here:
 
 ## Current TODO
 
-- Implement the authenticated baby resource API.
+- Implement the validated sleep/feed/wake event API.
 - Define validated event contracts and Huckleberry import behavior.
 - Implement and evaluate the deterministic baseline before TabPFN.
 
 ## Last Completed Task
 
-Frontend foundation — implement the initial Next.js/React/TypeScript shell.
+Authenticated baby management API — add owner-scoped baby CRUD with strict
+request validation.
 
 ## Last Commit
 
-Local frontend foundation completion commit; no GitHub push is required for
-local progress.
+Local baby management completion commit; no GitHub push is required for local
+progress.
 
 ## Last Security Review
 
-Secure OAuth review: 45 backend tests, canonical route checks, invalid state and
-callback checks, expired-session and unauthenticated `/me` checks, cookie and
-CSRF checks, exact-origin CORS checks, open-redirect rejection, provider
-validation, owner isolation, dependency checks, and secret review passed. No
-CRITICAL or HIGH findings were identified.
+Secure OAuth and baby authorization review: backend tests cover canonical route
+checks, invalid state/callbacks, expired sessions, unauthenticated requests,
+cookies, CSRF, exact-origin CORS, open redirects, provider validation, baby
+owner isolation, malformed IDs, strict request fields, invalid dates/timezones,
+bounded bodies, dependency checks, and secret review. No CRITICAL or HIGH
+findings were identified.
 
 ## Next Recommended Task
 
-`TASK-005` — implement the authenticated baby resource API using the completed
-ownership schema.
+`TASK-006` — implement the validated sleep/feed/wake event API using the
+completed baby ownership boundary.

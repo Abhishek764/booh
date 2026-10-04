@@ -38,6 +38,9 @@ finding because a feature is early or behind a development flag.
 - Never use a client-supplied user ID as the authorization source.
 - Repository queries for user-scoped data must include the authenticated owner
   constraint, not rely on a later application-side filter.
+- Baby list, read, update, and delete queries include the authenticated user's
+  ID in the database predicate. The baby API rejects client-supplied `user_id`
+  fields and returns the same not-found response for missing and foreign IDs.
 - Test horizontal access, object enumeration, deleted users, and stale sessions.
 
 ## CSRF and secure cookies

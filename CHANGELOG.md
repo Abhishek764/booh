@@ -47,6 +47,14 @@ phase and task ID.
 - Added a reviewed Alembic migration that backfills legacy events into a UTC
   profile per existing user and passes isolated upgrade/check/rollback tests.
 
+## 2026-10-04 — TASK-005
+
+- Added authenticated baby profile CRUD under `/api/v1/babies`.
+- Enforced owner predicates in every baby repository query and rejected
+  client-supplied ownership fields.
+- Added strict name, date, timezone, unknown-field, malformed-ID, request-size,
+  and cross-user authorization coverage.
+
 ## 2026-10-04 — Secure OAuth authentication follow-up
 
 - Added canonical Google login and callback route names under `/api/v1/auth`.

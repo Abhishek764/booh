@@ -10,8 +10,8 @@ understood. Status values are `DONE`, `READY`, `BLOCKED`, or `PLANNED`.
 | `TASK-002` | backend | Define the PostgreSQL schema, SQLAlchemy mappings, and Alembic workflow. | `TASK-001` | `backend/`, `docs/`, `tests/` | `DONE` | Reviewed migrations create user, identity, baby, event, prediction, summary, and external-audio-reference structures; rollback, legacy-event backfill, and isolated test database paths work. | Ownership constraints, UTC timestamps, cascading boundaries, parameterized access, no sensitive fixtures or audio binaries. |
 | `TASK-003` | frontend | Build the Next.js/React/TypeScript frontend foundation. | `TASK-001` | `frontend/`, `tests/` | `DONE` | Local frontend commands, responsive nighttime shell, accessible boundaries, theme preference, browser checks, and secure browser boundary pass. | No browser secrets, no database access, dependency review, XSS-safe rendering. |
 | `TASK-004` | backend/security | Implement the secure Google OAuth provider abstraction, sessions, and authorization boundary. | `TASK-002`, `TASK-003` | `backend/`, `tests/`, `SECURITY.md` | `DONE` | Canonical Google login/callback/logout/me routes, exact-origin CORS, session-bound CSRF, cookie flags, invalid state/callback, expiry, open-redirect, and ownership tests pass. | OAuth state/nonce, PKCE, CSRF, secure cookies, exact CORS, IDOR prevention, secret handling. |
-| `TASK-005` | backend | Implement the authenticated baby resource API. | `TASK-004` | `backend/`, `tests/`, `docs/` | `READY` | Versioned CRUD contracts, ownership enforcement, validation, and bounded errors pass. | IDOR prevention, authenticated ownership, input limits, no private data in errors/logs. |
-| `TASK-006` | backend | Implement the validated sleep/feed/wake event API. | `TASK-005` | `backend/`, `tests/`, `docs/` | `PLANNED` | Versioned event contracts, UTC normalization, filtering bounds, ownership, and validation pass. | IDOR prevention, allowlisted fields, timestamp validation, transaction safety. |
+| `TASK-005` | backend | Implement the authenticated baby resource API. | `TASK-004` | `backend/`, `tests/`, `docs/` | `DONE` | Versioned CRUD contracts, owner-scoped repository predicates, strict request validation, bounded bodies/errors, and IDOR tests pass. | IDOR prevention, authenticated ownership, input limits, no private data in errors/logs. |
+| `TASK-006` | backend | Implement the validated sleep/feed/wake event API. | `TASK-005` | `backend/`, `tests/`, `docs/` | `READY` | Versioned event contracts, UTC normalization, filtering bounds, ownership, and validation pass. | IDOR prevention, allowlisted fields, timestamp validation, transaction safety. |
 | `TASK-007` | data/backend | Implement the bounded Huckleberry CSV importer. | `TASK-006` | `backend/`, `tests/`, `docs/` | `PLANNED` | Supported synthetic fixtures import deterministically; malformed, oversized, duplicate, and impossible rows are handled explicitly. | Upload limits, safe temporary files, formula-injection defense, deletion path, isolation. |
 | `TASK-008` | ml/backend | Implement the versioned feature service and deterministic seven-day baseline. | `TASK-006` | `ml/`, `backend/`, `tests/` | `PLANNED` | Feature versioning, sparse-history behavior, reproducible predictions, and baseline evaluation pass. | Authorized user data only, no cross-user pooling, explicit uncertainty, no medical claims. |
 | `TASK-009` | ml | Add the isolated TabPFN adapter and evaluate it against the baseline. | `TASK-008` | `ml/`, `tests/`, `docs/` | `PLANNED` | Offline evaluation documents when TabPFN improves the baseline and when it is unavailable. | Bounded resources, model/version provenance, sparse-data safety, no training leakage. |
@@ -26,9 +26,13 @@ understood. Status values are `DONE`, `READY`, `BLOCKED`, or `PLANNED`.
 
 ## Historical alignment
 
-Active TASK-004 follow-up (backend): implement canonical Google route names,
+Completed TASK-004 follow-up (backend): canonical Google route names,
 credentialed origin allowlisting, browser-usable CSRF proof, and explicit
-database-backed authentication/security tests. Baby APIs remain TASK-005.
+database-backed authentication/security tests.
+
+Completed TASK-005 (backend): owner-scoped baby CRUD routes, strict contracts,
+repository-level ownership predicates, bounded request bodies, and explicit
+cross-user/validation tests. Event APIs remain TASK-006.
 
 The first implementation used the original board's numbering for scaffolding
 and database work. The current roadmap preserves the completed commits while
@@ -39,6 +43,20 @@ aligning the names above:
   `3d7c696`.
 - The database foundation was expanded in the current local commit with
   `0003_domain_database_foundation`.
+
+## Hacktoberfest 2026 submission track
+
+The current BOOH foundation is not submission-ready for the supplied Challenge
+1 “Build for a Friend” prompt. Before starting challenge code, explicitly claim
+a time-boxed task for the smallest end-to-end slice and confirm a real friend
+can test it. The slice must include a working prediction flow, a meaningful
+open-weight model feature, uncertainty-aware presentation, and honest feedback
+evidence. Do not spend the timebox on more OAuth polish, do not commit real
+family data, and do not describe a summary-only model as the prediction engine.
+
+The announcement supplied for this project lists the submission deadline as
+October 5, 2026 at 06:59 UTC. If a real friend is unavailable, preserve BOOH
+for a later submission rather than claiming the theme was met.
 
 ## Task workflow
 

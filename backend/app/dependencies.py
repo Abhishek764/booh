@@ -1,4 +1,4 @@
-"""FastAPI dependency wiring for the backend authentication boundary."""
+"""FastAPI dependency wiring for authentication and owned resources."""
 
 from __future__ import annotations
 
@@ -11,7 +11,9 @@ from backend.app.config import AuthSettings, ConfigurationError
 from backend.app.database import create_database_engine, create_session_factory
 from backend.app.providers.google import GoogleOAuthProvider
 from backend.app.repositories.auth import SqlAlchemyAuthRepository
+from backend.app.repositories.babies import SqlAlchemyBabyRepository
 from backend.app.services.auth import AuthError, AuthService, Principal
+from backend.app.services.babies import BabyError, BabyService
 
 
 def build_auth_service(settings: AuthSettings | None = None) -> AuthService:
@@ -46,4 +48,35 @@ def get_current_principal(request: Request) -> Principal:
     )
 
 
-__all__ = ["build_auth_service", "get_auth_service", "get_current_principal"]
+def build_baby_service() -> BabyService:
+    """Construct the baby service from the explicitly configured database."""
+
+    engine = create_database_engine()
+    repository = SqlAlchemyBabyRepository(create_session_factory(engine))
+    return BabyService(repository)
+
+
+def get_baby_service(request: Request) -> BabyService:
+    """Lazily construct the baby service without bypassing app configuration."""
+
+    configured = getattr(request.app.state, "baby_service", None)
+    if configured is not None:
+        return cast(BabyService, configured)
+    with request.app.state.auth_lock:
+        configured = getattr(request.app.state, "baby_service", None)
+        if configured is None:
+            try:
+                configured = build_baby_service()
+            except (RuntimeError, SQLAlchemyError):
+                raise BabyError("service_unavailable", 503) from None
+            request.app.state.baby_service = configured
+        return cast(BabyService, configured)
+
+
+__all__ = [
+    "build_auth_service",
+    "build_baby_service",
+    "get_auth_service",
+    "get_baby_service",
+    "get_current_principal",
+]
