@@ -125,9 +125,12 @@ non-enumerating, and marked `no-store` where identity or flow state is present.
 
 ## Frontend
 
-Next.js, React, and TypeScript are scaffolded with an accessible shell and no
-domain client behavior. The browser must not receive provider secrets or access
-the database directly.
+Next.js, React, and TypeScript now provide a dark-first, mobile-first shell with
+large nighttime typography, keyboard navigation, skip-link/error/loading/not-
+found boundaries, a display-only theme preference, and reusable components.
+The browser makes no API calls in the shell, receives no provider secrets, and
+does not access the database or implement prediction policy. Domain dashboard
+behavior remains a later task.
 
 ## Deployment
 
@@ -181,6 +184,8 @@ Names only; values must never be stored here:
   (local completion commit for this milestone).
 - Database foundation expansion — babies, events, predictions, summaries, and
   external audio references (current local commit).
+- Frontend foundation — responsive nighttime shell, accessible boundaries, and
+  deterministic browser checks (current local commit).
 
 ## Engineering Decisions
 
@@ -205,6 +210,8 @@ Names only; values must never be stored here:
 - CSV parsing and LLM inputs are untrusted boundaries.
 - Provider availability, cost, and data handling need review before integration.
 - ML and generated summaries must not be interpreted as medical guidance.
+- Frontend browser state is limited to the display theme until authenticated
+  domain state is introduced behind the API service boundary.
 
 ## Current TODO
 
@@ -214,21 +221,19 @@ Names only; values must never be stored here:
 
 ## Last Completed Task
 
-Database foundation expansion — implement baby-owned history and prediction
-storage with SQLAlchemy/Alembic.
+Frontend foundation — implement the initial Next.js/React/TypeScript shell.
 
 ## Last Commit
 
-Local database foundation completion commit; no GitHub push is required for
+Local frontend foundation completion commit; no GitHub push is required for
 local progress.
 
 ## Last Security Review
 
-Database foundation review: 42 backend tests, relationship/ownership/cascade
-checks, constraint and index checks, legacy-event migration backfill,
-Alembic upgrade/check/rollback, dependency checks, and secret review passed.
-No CRITICAL or HIGH findings were identified. Live PostgreSQL testing remains
-unavailable in this environment.
+Frontend foundation review: lint, typecheck, production build, dependency
+audit, secret review, and 8 desktop/mobile browser checks passed. The shell
+makes no API requests and renders React-escaped text only. No CRITICAL or HIGH
+findings were identified.
 
 ## Next Recommended Task
 

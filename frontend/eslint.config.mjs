@@ -12,6 +12,9 @@ export default defineConfig([
       },
       globals: {
         URL: "readonly",
+        window: "readonly",
+        document: "readonly",
+        HTMLButtonElement: "readonly",
       },
     },
     rules: {
@@ -19,5 +22,5 @@ export default defineConfig([
       "no-unused-vars": "off",
     },
   },
-  globalIgnores([".next/**", "node_modules/**", "next-env.d.ts"]),
+  globalIgnores([".next/**", "node_modules/**", "next-env.d.ts", "test-results/**", "playwright-report/**"]),
 ]);
