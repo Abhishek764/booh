@@ -45,6 +45,16 @@ The authenticated event routes are:
 - `PATCH /api/v1/events/{event_id}`
 - `DELETE /api/v1/events/{event_id}`
 
+The authenticated CSV import route is:
+
+- `POST /api/v1/babies/{baby_id}/imports`
+
+Send a bounded raw UTF-8 CSV body with `Content-Type: text/csv`, the configured
+origin, and the session-bound CSRF proof. Huckleberry-style and generic event
+adapters normalize to UTC and return a privacy-preserving import summary.
+See [`docs/imports.md`](../docs/imports.md) for schemas, date order, timezone
+precedence, limits, duplicate/transaction semantics, and retention.
+
 The configured `FRONTEND_ORIGIN` is the only credentialed CORS origin. The
 server keeps the session cookie HttpOnly and returns only a session-bound CSRF
 proof from `/auth/me`. Baby queries always include the authenticated session

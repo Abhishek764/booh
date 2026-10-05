@@ -9,13 +9,16 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from backend.app.config import AuthSettings, ConfigurationError
 from backend.app.database import create_database_engine, create_session_factory
+from backend.app.importers import CsvImportError
 from backend.app.providers.google import GoogleOAuthProvider
 from backend.app.repositories.auth import SqlAlchemyAuthRepository
 from backend.app.repositories.babies import SqlAlchemyBabyRepository
 from backend.app.repositories.events import SqlAlchemyEventRepository
+from backend.app.repositories.imports import SqlAlchemyImportRepository
 from backend.app.services.auth import AuthError, AuthService, Principal
 from backend.app.services.babies import BabyError, BabyService
 from backend.app.services.events import EventError, EventService
+from backend.app.services.imports import ImportService
 
 
 def build_auth_service(settings: AuthSettings | None = None) -> AuthService:
@@ -119,6 +122,25 @@ def get_event_service(request: Request) -> EventService:
         return cast(EventService, configured)
 
 
+def get_import_service(request: Request) -> ImportService:
+    """Lazily wire owner-scoped import persistence with frozen upload limits."""
+
+    configured = getattr(request.app.state, "import_service", None)
+    if configured is not None:
+        return cast(ImportService, configured)
+    with request.app.state.auth_lock:
+        configured = getattr(request.app.state, "import_service", None)
+        if configured is None:
+            try:
+                engine = create_database_engine()
+                repository = SqlAlchemyImportRepository(create_session_factory(engine))
+                configured = ImportService(repository, limits=request.app.state.import_limits)
+            except (RuntimeError, SQLAlchemyError):
+                raise CsvImportError("service_unavailable", 503) from None
+            request.app.state.import_service = configured
+        return cast(ImportService, configured)
+
+
 __all__ = [
     "build_auth_service",
     "build_baby_service",
@@ -128,4 +150,5 @@ __all__ = [
     "get_csrf_protected_principal",
     "get_current_principal",
     "get_event_service",
+    "get_import_service",
 ]

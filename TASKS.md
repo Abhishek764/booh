@@ -12,8 +12,8 @@ understood. Status values are `DONE`, `READY`, `BLOCKED`, or `PLANNED`.
 | `TASK-004` | backend/security | Implement the secure Google OAuth provider abstraction, sessions, and authorization boundary. | `TASK-002`, `TASK-003` | `backend/`, `tests/`, `SECURITY.md` | `DONE` | Canonical Google login/callback/logout/me routes, exact-origin CORS, session-bound CSRF, cookie flags, invalid state/callback, expiry, open-redirect, and ownership tests pass. | OAuth state/nonce, PKCE, CSRF, secure cookies, exact CORS, IDOR prevention, secret handling. |
 | `TASK-005` | backend | Implement the authenticated baby resource API. | `TASK-004` | `backend/`, `tests/`, `docs/` | `DONE` | Versioned CRUD contracts, owner-scoped repository predicates, strict request validation, bounded bodies/errors, and IDOR tests pass. | IDOR prevention, authenticated ownership, input limits, no private data in errors/logs. |
 | `TASK-006` | backend | Implement the validated sleep/feed/wake event API. | `TASK-005` | `backend/`, `tests/`, `docs/` | `DONE` | Versioned event contracts, UTC normalization, bounded pagination, owner-scoped nested/create/update/delete queries, CSRF-protected mutations, and validation pass. | IDOR prevention, allowlisted fields, timestamp validation, transaction safety. |
-| `TASK-007` | data/backend | Implement the bounded Huckleberry CSV importer. | `TASK-006` | `backend/`, `tests/`, `docs/` | `READY` | Supported synthetic fixtures import deterministically; malformed, oversized, duplicate, and impossible rows are handled explicitly. | Upload limits, safe temporary files, formula-injection defense, deletion path, isolation. |
-| `TASK-008` | ml/backend | Implement the versioned feature service and deterministic seven-day baseline. | `TASK-006` | `ml/`, `backend/`, `tests/` | `PLANNED` | Feature versioning, sparse-history behavior, reproducible predictions, and baseline evaluation pass. | Authorized user data only, no cross-user pooling, explicit uncertainty, no medical claims. |
+| `TASK-007` | data/backend | Implement the bounded Huckleberry CSV importer. | `TASK-006` | `backend/`, `tests/`, `docs/` | `DONE` | Supported synthetic fixtures import deterministically; malformed, oversized, duplicate, and impossible rows are handled explicitly. | Upload limits, memory-only originals, formula-injection defense, deletion path, isolation. |
+| `TASK-008` | ml/backend | Implement the versioned feature service and deterministic seven-day baseline. | `TASK-006` | `ml/`, `backend/`, `tests/` | `READY` | Feature versioning, sparse-history behavior, reproducible predictions, and baseline evaluation pass. | Authorized user data only, no cross-user pooling, explicit uncertainty, no medical claims. |
 | `TASK-009` | ml | Add the isolated TabPFN adapter and evaluate it against the baseline. | `TASK-008` | `ml/`, `tests/`, `docs/` | `PLANNED` | Offline evaluation documents when TabPFN improves the baseline and when it is unavailable. | Bounded resources, model/version provenance, sparse-data safety, no training leakage. |
 | `TASK-011` | backend | Expose the layered prediction API. | `TASK-004`, `TASK-008`, `TASK-009` | `backend/`, `tests/`, `docs/` | `PLANNED` | `/api/v1` contracts, auth, validation, ownership, errors, and model metadata are tested and documented. | Thin routes, IDOR tests, rate/size limits, no raw private history in logs/errors. |
 | `TASK-010` | llm/security | Add the Gemma summary service for short validated summaries. | `TASK-011` | `backend/`, `ml/`, `tests/`, `docs/` | `PLANNED` | Prompt minimization, injection tests, strict output validation, bounded length, and deterministic fallback pass. | Prompt injection defense, no tools/secrets, output validation, privacy-preserving logs. |
@@ -26,6 +26,10 @@ understood. Status values are `DONE`, `READY`, `BLOCKED`, or `PLANNED`.
 
 ## Historical alignment
 
+Completed claim: `TASK-007` — data/backend, secure Huckleberry and generic CSV
+import pipeline. Dependencies `TASK-004` through `TASK-006` are complete.
+Q&A check: no blocking questions. Result: `.agent/data/RESULT.md`.
+
 Completed TASK-004 follow-up (backend): canonical Google route names,
 credentialed origin allowlisting, browser-usable CSRF proof, and explicit
 database-backed authentication/security tests.
@@ -36,7 +40,12 @@ cross-user/validation tests.
 
 Completed TASK-006 (backend): owner-scoped sleep/feed/wake event routes, UTC
 normalization, strict values and timestamp validation, CSRF-protected mutations,
-bounded pagination, and explicit cross-user/IDOR tests. Import remains TASK-007.
+bounded pagination, and explicit cross-user/IDOR tests.
+
+Completed TASK-007 (data/backend): bounded memory-only CSV uploads, independent
+Huckleberry/generic adapters, UTC normalization, semantic baby-scoped duplicate
+detection, atomic persistence, privacy-preserving summaries, and synthetic import
+security tests. No schema or runtime dependency changes.
 
 The first implementation used the original board's numbering for scaffolding
 and database work. The current roadmap preserves the completed commits while

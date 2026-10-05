@@ -67,6 +67,13 @@ data/
 tmp/
 temp/
 
+# Reviewed synthetic import fixtures and the data-agent completion record only.
+!/backend/tests/fixtures/imports/huckleberry.csv
+!/backend/tests/fixtures/imports/generic.csv
+!/.agent/data/
+/.agent/data/*
+!/.agent/data/RESULT.md
+
 # Reports and local runtime output
 logs/
 *.log

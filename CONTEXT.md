@@ -9,11 +9,12 @@ uncertain, and not medical advice.
 
 ## Current Phase
 
-Phase 1 — Authenticated domain foundation. The repository foundation,
+Phase 1 — Authenticated history ingestion. The repository foundation,
 PostgreSQL/Alembic schema, Next.js application boundary, and OAuth/session
-authorization are complete. The database now includes baby-owned events,
-predictions, summaries, and external audio references. The next dependency-ready
-milestone is the bounded event-import API.
+authorization are complete. Baby-owned event tracking and the bounded CSV import
+API are implemented. The database includes events, predictions, summaries, and
+external audio references. The next dependency-ready milestone is the versioned
+feature service and explicit deterministic seven-day baseline.
 
 ## Hacktoberfest 2026 challenge context
 
@@ -132,10 +133,29 @@ Google service testing remains pending.
 
 ## Data Import
 
-Huckleberry CSV import is planned but not implemented. Real CSV exports and
-real baby data must never enter this repository. Import design must include
-strict validation, safe temporary storage, bounded resource use, and a deletion
-path.
+`Importer` now has independent `HuckleberryImporter` and `GenericEventImporter`
+adapters, exposed through authenticated, CSRF-protected
+`POST /api/v1/babies/{baby_id}/imports`. The endpoint accepts raw UTF-8 CSV bodies
+with allowlisted MIME types and optional validated filename metadata; it never
+stores uploads on disk. The importer detects columns, parses dates with an
+explicit slash-date order, uses the owned baby timezone unless overridden,
+normalizes events to UTC, and reuses event policy/DST validation.
+
+Default budgets are 2 MiB and 10,000 rows, with hard ceilings of 10 MiB and
+10,000 rows. Cells, logical records, columns, errors, receiving time, and concurrent
+imports are also bounded. Formula/control injection is rejected even in ignored
+text. Only normalized event fields are persisted; free text is discarded and CSV
+contents are never executed, logged, or sent to Gemma or another provider.
+
+Summaries report `rows_processed`, `rows_imported`, `rows_skipped`, `rows_failed`,
+`duplicates`, and bounded line-number/code `errors`, plus `errors_truncated`.
+Semantic duplicates are detected within a file and against existing manual or
+imported events for the same owned baby. PostgreSQL baby-row locks serialize
+import transactions. File-level corruption/budget violations abort before writes;
+invalid event rows are reported and valid rows commit atomically. Original bytes
+are request-scoped; normalized events use the existing authorized event/baby
+deletion path. Supported schemas and synthetic fixture assumptions are documented
+in `docs/imports.md`. Real CSV exports and baby data must never enter the repo.
 
 ## ML
 
@@ -160,7 +180,8 @@ The public API prefix is `/api/v1`. The current routes are `GET /health`,
 `GET /auth/google`, `GET /auth/google/callback`, `POST /auth/logout`,
 authenticated `GET /auth/me`, and authenticated baby CRUD routes under
 `/babies`, plus authenticated event collection/mutation routes under
-`/babies/{baby_id}/events` and `/events/{event_id}`. Auth, baby, and event routes
+`/babies/{baby_id}/events` and `/events/{event_id}`, plus the authenticated CSV
+import route `/babies/{baby_id}/imports`. Auth, baby, event, and import routes
 remain thin and delegate to services,
 repositories, and provider abstractions. Baby repository queries always include
 the authenticated owner predicate; baby responses do not expose `user_id`.
@@ -243,6 +264,9 @@ Names only; values must never be stored here:
   strict request validation (current local commit).
 - `TASK-006` — authenticated event tracking with UTC normalization, bounded
   validation, and cross-user authorization tests (current local commit).
+- `TASK-007` — secure Huckleberry/generic CSV import, owner-scoped deduplication,
+  transactional persistence, bounded summaries, and synthetic security tests
+  (local importer completion commit).
 
 ## Engineering Decisions
 
@@ -257,6 +281,12 @@ Names only; values must never be stored here:
   loading resources.
 - Normalize event timestamps to UTC only after validating the supplied timezone;
   reject ambiguous or nonexistent local times.
+- Receive CSV as a bounded raw body rather than multipart or disk-backed uploads;
+  retain only typed events, never original files or imported free text.
+- Keep provider adapters separate from upload orchestration and repositories;
+  share persistence-independent normalized values across event tracking/import.
+- Reject unknown/ambiguous columns and require explicit locale date order. Use
+  semantic, baby-scoped duplicate identity independent of event source.
 
 ## Known Risks
 
@@ -269,6 +299,11 @@ Names only; values must never be stored here:
   product/API work must provide an explicit profile and timezone workflow for
   new baby records.
 - CSV parsing and LLM inputs are untrusted boundaries.
+- CSV compatibility is verified with synthetic allowlisted schemas. Additional
+  provider export/locale variants need reviewed aliases and regression fixtures;
+  PostgreSQL concurrent-import locking needs later live-service verification.
+- Per-process import budgets are implemented; deployment-wide rate limits and
+  backup retention remain deployment/security work.
 - Provider availability, cost, and data handling need review before integration.
 - ML and generated summaries must not be interpreted as medical guidance.
 - Frontend browser state is limited to the display theme until authenticated
@@ -278,18 +313,18 @@ Names only; values must never be stored here:
 
 ## Current TODO
 
-- Implement the bounded Huckleberry CSV importer.
+- Implement the versioned feature service using authorized normalized events.
 - Implement and evaluate the deterministic baseline before TabPFN.
 
 ## Last Completed Task
 
-Authenticated event tracking API — add owner-scoped sleep/feed/wake event CRUD
-with strict timestamp and value validation.
+`TASK-007` — secure Huckleberry and generic CSV import with bounded parsing,
+UTC normalization, baby-scoped duplicates, atomic persistence, and safe summaries.
 
 ## Last Commit
 
-Local event tracking completion commit; no GitHub push is required for local
-progress.
+`feat: add secure Huckleberry CSV importer` — local completion commit carrying
+this context and the data-agent result.
 
 ## Last Security Review
 
@@ -298,10 +333,15 @@ checks, invalid state/callbacks, expired sessions, unauthenticated requests,
 cookies, CSRF, exact-origin CORS, open redirects, provider validation, baby
 owner isolation, malformed IDs, strict request fields, invalid dates/timezones,
 bounded bodies, event ownership/list pagination, event type and timestamp
-validation, duration/feed rules, CSRF-protected mutations, dependency checks,
-and secret review. No CRITICAL or HIGH findings were identified.
+validation, duration/feed rules, CSRF-protected mutations, upload streaming/row/
+cell/record/column budgets, filename traversal, MIME/encoding, formula/control
+injection, malicious imported text, safe errors/logs, timeout/concurrency,
+cross-user import isolation, semantic duplicates, transaction rollback, dependency
+checks, and secret review. All 151 backend tests pass; targeted Ruff and mypy checks
+pass, and the pinned Python dependency audit reports no known vulnerabilities.
+No CRITICAL or HIGH findings were identified.
 
 ## Next Recommended Task
 
-`TASK-007` — implement the bounded Huckleberry CSV importer using the completed
-event validation boundary.
+`TASK-008` — implement the versioned feature service and deterministic seven-day
+baseline using the completed authorized event/import boundaries.

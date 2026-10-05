@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from backend.app.config import ImportLimits
 from backend.app.database import create_database_engine, create_session_factory
 from backend.app.main import app
 from backend.app.models import Base, User
@@ -15,9 +16,11 @@ from backend.app.providers.google import ExternalIdentity
 from backend.app.repositories.auth import InMemoryAuthRepository
 from backend.app.repositories.babies import SqlAlchemyBabyRepository
 from backend.app.repositories.events import SqlAlchemyEventRepository
+from backend.app.repositories.imports import SqlAlchemyImportRepository
 from backend.app.services.auth import AuthService
 from backend.app.services.babies import BabyService
 from backend.app.services.events import EventService
+from backend.app.services.imports import ImportService
 from backend.tests.test_auth_service import NOW, settings
 
 
@@ -87,6 +90,10 @@ def configured_client(tmp_path: Path):
     app.state.auth_service = auth_service
     app.state.baby_service = baby_service
     app.state.event_service = event_service
+    app.state.import_service = ImportService(
+        SqlAlchemyImportRepository(create_session_factory(engine)),
+        limits=ImportLimits(), clock=lambda: NOW,
+    )
     client = TestClient(app, base_url="https://testserver")
 
     def login(code: str) -> None:
@@ -111,6 +118,7 @@ def configured_client(tmp_path: Path):
         app.state.auth_service = None
         app.state.baby_service = None
         app.state.event_service = None
+        app.state.import_service = None
 
 
 def test_baby_crud_is_authenticated_and_owner_scoped(configured_client) -> None:

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Callable
@@ -11,11 +10,11 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy.exc import SQLAlchemyError
 
+from backend.app.event_values import NormalizedEvent
 from backend.app.models import EventType
 from backend.app.repositories.events import EventRecord, OwnedEventRepository
 from backend.app.security import utc_now
 from backend.app.services.auth import Principal
-
 
 MAX_EVENT_DURATION_SECONDS = 7 * 24 * 60 * 60
 MAX_FEED_AMOUNT_ML = Decimal("10000.00")
@@ -29,17 +28,6 @@ class EventError(RuntimeError):
         super().__init__(code)
         self.code = code
         self.status_code = status_code
-
-
-@dataclass(frozen=True, slots=True)
-class NormalizedEvent:
-    """Validated event values ready for persistence in UTC."""
-
-    event_type: EventType
-    start_time: datetime
-    end_time: datetime | None
-    duration_seconds: int | None
-    feed_amount_ml: Decimal | None
 
 
 def validate_timezone_name(value: str) -> str:

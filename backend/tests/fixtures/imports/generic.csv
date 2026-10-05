@@ -1,0 +1,4 @@
+event_type,start_time,end_time,duration_seconds,feed_amount_ml,timezone
+sleep,2025-12-30T22:00:00Z,2025-12-30T23:30:00Z,5400,,UTC
+feed,2025-12-31T00:00:00Z,,,118.29,UTC
+wake,2025-12-31T01:00:00Z,,,,UTC

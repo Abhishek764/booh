@@ -67,8 +67,8 @@ finding because a feature is early or behind a development flag.
   fragments, credentials, wildcards, and arbitrary browser-supplied origins are
   rejected.
 - Credentialed CORS allows only that configured origin, `GET`/`POST`/`PATCH`/
-  `DELETE`, and the `Content-Type`/`X-CSRF-Token` headers. Wildcard origins are
-  never combined with credentials. Production origins and redirect URIs must
+  `DELETE`, and the `Content-Type`/`Content-Disposition`/`X-CSRF-Token` headers.
+  Wildcard origins are never combined with credentials. Production origins and redirect URIs must
   use HTTPS.
 - Post-login redirects always use the configured frontend origin; no `next`,
   `redirect`, or other browser-controlled destination is accepted.
@@ -115,10 +115,47 @@ the canonical configuration.
   count, encoding, and columns.
 - Treat file names, MIME types, extensions, and CSV cells as untrusted. Do not
   execute file content or place uploads in a web-served directory.
-- Store uploads outside the application source tree, scan where appropriate,
-  use safe temporary files, and delete them according to the retention policy.
+- The implemented raw-CSV endpoint never stores original uploads on disk. Any
+  future storage must be outside the source tree and served directories, use
+  safe temporary files, and have a reviewed deletion policy.
 - Defend against CSV formula injection on export or display and against parser
   resource exhaustion.
+
+### Implemented CSV import boundary (TASK-007)
+
+- `POST /api/v1/babies/{baby_id}/imports` requires a live server session,
+  session-bound CSRF proof, and the exact configured origin. Repository ownership
+  is checked before body consumption and again inside the transaction. CSVs
+  cannot supply ownership, source, or audit fields; foreign and missing babies
+  have identical not-found errors.
+- Accept only raw `text/csv`/`application/csv` bodies and UTF-8 (optional BOM).
+  Reject multipart, executable/binary/archive MIME types, invalid encoding,
+  duplicate upload metadata headers, and unsafe filename metadata. Filenames
+  are short ASCII `.csv` basenames and are never used for filesystem access.
+- Count actual streamed bytes independently of `Content-Length`. Default budgets
+  are 2 MiB and 10,000 records; configurable hard ceilings are 10 MiB and 10,000
+  records. Bound columns (32), cell characters (4,096), logical record characters
+  (16,384), reported errors (100), receiving time (30 seconds), and concurrent
+  imports (four per application service/process). Excess imports return `429`.
+  Invalid limit configuration fails closed.
+- Validate column allowlists, dates, IANA timezones/DST, decimals, units, durations,
+  event types, and cross-field relationships. Check every cell, including ignored
+  free text, for formula prefixes and unsafe control/format characters. Store
+  only normalized typed events; discard notes, details, and condition text.
+- Structural corruption and file-level budget failures abort without writes.
+  Row-level errors are fixed codes and physical line numbers, never raw records.
+  Transaction failures roll back all valid rows. PostgreSQL baby-row locking
+  serializes imports; duplicate queries remain owner- and baby-scoped and batched.
+- Uploaded bytes are never executed, evaluated, passed to shells, logged, rendered
+  as raw HTML, used for URL fetches, or sent to Gemma or other providers. Buffers
+  are request-scoped and originals have no retention. Imported events use the
+  existing owner-authorized event/baby deletion path, including cascade deletion.
+- Synthetic tests cover parser/streaming limits, formula/control injection,
+  malicious text, filenames/traversal, MIME/encoding, CSRF, cross-user access,
+  privacy of errors/logs, duplicates, timeout/concurrency, and transaction rollback.
+  No new runtime dependency or database migration is introduced. No CRITICAL or
+  HIGH finding was identified in this feature review. Full upload semantics and
+  remaining live-provider/PostgreSQL verification are in `docs/imports.md`.
 
 ## SQL injection prevention
 

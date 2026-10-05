@@ -10,15 +10,17 @@ from typing import Literal
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict
 
-from backend.app.routes.auth import router as auth_router
-from backend.app.config import AuthSettings, ConfigurationError
+from backend.app.config import AuthSettings, ConfigurationError, ImportLimits
+from backend.app.importers import CsvImportError
 from backend.app.middleware import AuthPrivacyMiddleware
+from backend.app.routes.auth import router as auth_router
 from backend.app.routes.babies import router as babies_router
 from backend.app.routes.events import router as events_router
+from backend.app.routes.imports import router as imports_router
 from backend.app.services.auth import AuthError
 from backend.app.services.babies import BabyError
 from backend.app.services.events import EventError
@@ -117,7 +119,18 @@ async def health() -> HealthResponse:
     return HealthResponse()
 
 
-def create_app(auth_settings: AuthSettings | None = None) -> FastAPI:
+async def import_error_handler(request: Request, exc: CsvImportError) -> JSONResponse:
+    del request
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": {"code": exc.code, "message": "The CSV import could not be processed."}},
+        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+    )
+
+
+def create_app(
+    auth_settings: AuthSettings | None = None, *, import_limits: ImportLimits | None = None
+) -> FastAPI:
     """Freeze security configuration once and allow exactly one browser origin."""
     if auth_settings is None:
         try:
@@ -135,13 +148,17 @@ def create_app(auth_settings: AuthSettings | None = None) -> FastAPI:
     application.state.auth_lock = Lock()
     application.state.baby_service = None
     application.state.event_service = None
+    application.state.import_service = None
+    application.state.import_limits = import_limits or ImportLimits.from_environment()
     application.add_exception_handler(RequestValidationError, request_validation_error_handler)
     application.add_exception_handler(AuthError, auth_error_handler)
     application.add_exception_handler(BabyError, baby_error_handler)
     application.add_exception_handler(EventError, event_error_handler)
+    application.add_exception_handler(CsvImportError, import_error_handler)
     application.include_router(auth_router, prefix=API_V1_PREFIX)
     application.include_router(babies_router, prefix=API_V1_PREFIX)
     application.include_router(events_router, prefix=API_V1_PREFIX)
+    application.include_router(imports_router, prefix=API_V1_PREFIX)
     application.add_api_route(
         f"{API_V1_PREFIX}/health", health, response_model=HealthResponse,
         tags=["system"], summary="Check API availability",
@@ -151,7 +168,7 @@ def create_app(auth_settings: AuthSettings | None = None) -> FastAPI:
         allow_origins=[auth_settings.frontend_origin] if auth_settings else [],
         allow_credentials=True,
         allow_methods=["GET", "POST", "PATCH", "DELETE"],
-        allow_headers=["Content-Type", "X-CSRF-Token"],
+        allow_headers=["Content-Type", "Content-Disposition", "X-CSRF-Token"],
         max_age=600,
     )
     application.add_middleware(AuthPrivacyMiddleware)

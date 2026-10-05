@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
@@ -26,7 +27,7 @@ GOOGLE_CALLBACK_PATHS = frozenset({
 })
 
 
-def _required(name: str, values: dict[str, str | None]) -> str:
+def _required(name: str, values: Mapping[str, str | None]) -> str:
     value = values.get(name)
     if value is None or not value.strip():
         raise ConfigurationError(f"{name} must be configured")
@@ -202,4 +203,29 @@ class AuthSettings:
         )
 
 
-__all__ = ["AuthSettings", "ConfigurationError"]
+@dataclass(frozen=True, slots=True)
+class ImportLimits:
+    """Finite upload budgets; environment values cannot remove hard ceilings."""
+
+    max_upload_bytes: int = 2 * 1024 * 1024
+    max_rows: int = 10000
+
+    def __post_init__(self) -> None:
+        if type(self.max_upload_bytes) is not int or not 1 <= self.max_upload_bytes <= 10 * 1024 * 1024:
+            raise ConfigurationError("MAX_UPLOAD_BYTES must be between 1 and 10485760")
+        if type(self.max_rows) is not int or not 1 <= self.max_rows <= 10000:
+            raise ConfigurationError("MAX_IMPORT_ROWS must be between 1 and 10000")
+
+    @classmethod
+    def from_environment(cls, environ: dict[str, str] | None = None) -> "ImportLimits":
+        values = os.environ if environ is None else environ
+        try:
+            return cls(
+                max_upload_bytes=int(values.get("MAX_UPLOAD_BYTES") or 2 * 1024 * 1024),
+                max_rows=int(values.get("MAX_IMPORT_ROWS") or 10000),
+            )
+        except (TypeError, ValueError):
+            raise ConfigurationError("Import limits must be bounded integers") from None
+
+
+__all__ = ["AuthSettings", "ConfigurationError", "ImportLimits"]
