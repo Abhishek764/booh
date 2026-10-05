@@ -134,9 +134,11 @@ class EventService:
         repository: OwnedEventRepository,
         *,
         clock: Callable[[], datetime] = utc_now,
+        on_change: Callable[[uuid.UUID, uuid.UUID], None] | None = None,
     ) -> None:
         self._repository = repository
         self._clock = clock
+        self._on_change = on_change
 
     def list_events(
         self,
@@ -194,6 +196,8 @@ class EventService:
             raise self._service_error(exc) from None
         if event is None:
             raise EventError("resource_not_found", 404)
+        if self._on_change is not None:
+            self._on_change(principal.user_id, baby_id)
         return event
 
     def get_event(self, principal: Principal, *, event_id: uuid.UUID) -> EventRecord:
@@ -269,9 +273,12 @@ class EventService:
             raise self._service_error(exc) from None
         if updated is None:
             raise EventError("resource_not_found", 404)
+        if self._on_change is not None:
+            self._on_change(principal.user_id, updated.baby_id)
         return updated
 
     def delete_event(self, principal: Principal, *, event_id: uuid.UUID) -> None:
+        existing = self.get_event(principal, event_id=event_id)
         try:
             deleted = self._repository.delete_owned_event(
                 event_id=event_id, owner_id=principal.user_id
@@ -280,6 +287,8 @@ class EventService:
             raise self._service_error(exc) from None
         if not deleted:
             raise EventError("resource_not_found", 404)
+        if self._on_change is not None:
+            self._on_change(principal.user_id, existing.baby_id)
 
     @staticmethod
     def _service_error(exc: Exception) -> EventError:

@@ -9,7 +9,7 @@ uncertain, and not medical advice.
 
 ## Current Phase
 
-Phase 1 — Numerical prediction foundation. The repository foundation,
+Phase 1 — Authenticated prediction pipeline. The repository foundation,
 PostgreSQL/Alembic schema, Next.js application boundary, and OAuth/session
 authorization are complete. Baby-owned event tracking and the bounded CSV import
 API are implemented. The database includes events, predictions, summaries, and
@@ -17,8 +17,9 @@ external audio references. The independent, versioned numerical feature service
 is implemented, along with the explicit seven-day baseline, local optional TabPFN
 adapter, offline held-out evaluation, and safe production numerical inference.
 The standalone guarded Gemma summary service is implemented and verified.
-The next dependency-ready milestone is the authenticated layered prediction API
-and summary integration.
+The layered authenticated prediction POST/GET API now retrieves bounded owned
+history, runs numerical features/model/baseline, persists results, and integrates
+guarded summaries. The next dependency-ready milestone is bounded ElevenLabs audio.
 
 ## Hacktoberfest 2026 challenge context
 
@@ -30,8 +31,9 @@ submission deadline is October 5, 2026 at 06:59 UTC.
 
 Honest status: BOOH is currently a foundation, not a valid submission. It has a
 strong privacy and new-parent problem statement, but it does not yet have a
-working prediction flow, open-source AI feature, usable dashboard, friend test,
-or submission evidence. Secure OAuth is valuable engineering but is not by
+usable dashboard, friend test, deployed/live Gemma verification,
+or submission evidence. An authenticated numerical/summary backend is implemented;
+secure OAuth is valuable engineering but is not by
 itself evidence of meeting this challenge.
 
 Challenge scope decision:
@@ -119,8 +121,14 @@ prediction-linked `summaries`, and summary-linked external `audio` references.
 Events support sleep/feed/wake types, UTC start/end times, duration, and feed
 amount where applicable. Predictions retain explicit baseline/model/feature
 versions and bounded feature metadata. Audio bytes are stored outside the
-database. No production data exists. All user-scoped access will enforce the
-authenticated ownership path.
+database. No production data exists. Prediction persistence enforces authenticated
+baby ownership at snapshot/initial commit/summary finalization/list boundaries.
+Migration `0004_prediction_probability` changes four-decimal wake probability to
+double precision to preserve the numerical float across POST, GET, and summaries;
+rollback restores the historical lossy format. Initial numerical + local-summary
+writes are atomic, provider calls happen after commit, and final summary writes
+cannot assign numerical fields. Baby deletion cascades outputs. Details and
+migration/retention verification are in `docs/prediction-api.md`.
 
 ## Authentication
 
@@ -194,8 +202,8 @@ evaluated optional `TabPFNModel`, and explicit `BaselineModel`. It returns
 remaining `expected_sleep_minutes`, `wake_probability_60m`, `baseline_minutes`,
 and an honest selected `model_version`; Gemma never computes or modifies these
 numbers. It consumes already authorized history, validates selected-baby scope,
-and is independent of FastAPI/persistence. The HTTP resource/lifecycle boundary
-remains TASK-011.
+and is independent of FastAPI/persistence. TASK-011 now composes this engine behind
+the authenticated HTTP resource/lifecycle boundary.
 
 `baseline-7d-v1` uses unique, positive, nonoverlapping sleep bouts completed in
 the preceding seven elapsed days. For elapsed sleep e, use historical d > e:
@@ -223,8 +231,12 @@ better, and binds the fitted candidate to baby/training/evaluation provenance.
 Inference never fits/evaluates. It rejects foreign/future/stale artifacts, missing
 features, unsupported elapsed time, and malformed/NaN/infinite output. Default
 fallback is explicitly labeled `baseline-7d-v1`; fail-closed mode is available.
-Fitted context stays only in the worker until close; rejected candidates are
-closed and lifecycle deletion/replacement integration belongs to TASK-011.
+Fitted context stays only in the worker until close. TASK-011 supplies a two-model
+owner/baby-keyed registry with serialized inference/replacement, revision-bound
+offline-approved installation, failed/stale/mutated-artifact close, seven-day expiry,
+baby deletion and profile/event/import invalidation, owner clear, and shutdown
+close. No fitting/evaluation/model upload occurs in HTTP. Deployment must coordinate
+invalidation across processes and direct/account database deletion.
 
 Real isolated CPU evaluation on the repeating synthetic 42-bout fixture (31
 eligible training bouts, five held-out bouts/14 snapshots) measured baseline MAE
@@ -261,6 +273,10 @@ workers but require operator resolver deadlines. The service has no persistence,
 caching, or private-data logging; summary/requested-model/outcome metadata is
 internal. Hosted handling/retention review and live Gemma verification precede
 production use. Contracts and verification are in `docs/summaries.md`.
+The authenticated pipeline now calls summaries only after numerical/local-summary
+commit. It revalidates returned text independently and persists summary-only fields;
+Gemma failure returns the original numbers with grounded local text. Summary-write
+failure returns 503 and preserves the committed local fallback for GET.
 
 ## TTS
 
@@ -274,7 +290,8 @@ The public API prefix is `/api/v1`. The current routes are `GET /health`,
 authenticated `GET /auth/me`, and authenticated baby CRUD routes under
 `/babies`, plus authenticated event collection/mutation routes under
 `/babies/{baby_id}/events` and `/events/{event_id}`, plus the authenticated CSV
-import route `/babies/{baby_id}/imports`. Auth, baby, event, and import routes
+import route `/babies/{baby_id}/imports`, plus `POST /babies/{baby_id}/predict`
+and `GET /babies/{baby_id}/predictions`. Auth, baby, event, import, and prediction routes
 remain thin and delegate to services,
 repositories, and provider abstractions. Baby repository queries always include
 the authenticated owner predicate; baby responses do not expose `user_id`.
@@ -287,6 +304,27 @@ local timestamps with a validated IANA timezone, stores normalized UTC values,
 and rejects impossible relationships. Event mutations require the session-bound
 CSRF proof and exact configured frontend origin. No ML or prediction behavior is
 part of event tracking.
+
+Prediction POST requires live auth, session-bound CSRF, and exact origin, and checks
+ownership before consuming an empty/strict JSON `{}` body. Server UTC time and owned
+baby/history define context; no client numerical/as-of/host/model overrides. Input
+is bounded to 1 KiB/five-second receiving time; unknown fields fail. History queries
+include owner joins, future-start exclusion, overlapping/duration-only window sleeps,
+and a 10,001-row sentinel to reject histories over 10,000. Active sleep elapsed is
+derived from the latest unclosed sleep without a later wake; otherwise forecast at
+bout start. Insufficient/invalid history never produces manufactured numbers.
+
+POST returns 201 with id/baby/time, expected minutes, wake probability, baseline,
+versions, honest used-baseline flag, summary, and summary-fallback flag. GET returns
+the same stored shape with bounded limit (1–100)/offset (0–10,000), stable descending
+time/id order, and no ML/provider calls. Stored text/numbers are revalidated. Four
+service and four actual-worker slots, a 45-second await budget, and ten generations
+per owner per minute bound production work. Private no-store/no-referrer/nosniff
+headers cover the baby surface. All errors are fixed and private-data-free.
+Snapshot revision/ownership checks and coordinated PostgreSQL baby locks prevent
+writing an outdated result across profile/history changes; conflicts return 409.
+API contracts, persistence failures/races, lifecycle, and security review are in
+`docs/prediction-api.md`.
 
 ## Frontend
 
@@ -370,6 +408,10 @@ Names only; values must never be stored here:
 - `TASK-010` — standalone guarded Gemma summary provider/service, minimized numeric
   prompts, strict grounded output validation, deterministic fallback, and synthetic
   provider/privacy/security coverage (local summary completion commit).
+- `TASK-011` — authenticated owner-scoped prediction POST/GET pipeline, exact
+  numerical persistence, guarded summary integration, bounded approved-model
+  lifecycle, probability migration, and privacy/failure/security tests (local
+  prediction API completion commit).
 
 ## Engineering Decisions
 
@@ -409,6 +451,13 @@ Names only; values must never be stored here:
 - Use deterministic local summaries when generation is disabled/unavailable or
   output is rejected, without altering numerical predictions. Keep host/model
   selection operator-owned and provider versions/outcomes in internal metadata.
+- Persist immutable numerical results and deterministic local summary together
+  before provider calls, then update only validated summary text/internal outcomes.
+  Recheck ownership and snapshot revision; preserve fallback records if final
+  summary persistence fails. Preserve model probability with double precision.
+- Keep prediction context server-owned and model fitting offline. Require current
+  owner/baby/revision/evaluation bindings for installed models; invalidate on
+  profile/history changes, deletion, expiry, failure, and application shutdown.
 
 ## Known Risks
 
@@ -420,8 +469,9 @@ Names only; values must never be stored here:
 - Synthetic TabPFN benchmark success is not evidence of real-family performance.
   Small held-out samples and empirical baseline frequencies remain uncertain.
 - Checkpoints are trusted operator artifacts, not uploads. Fitted context remains
-  in memory; TASK-011 must couple worker replacement/deletion to ownership and
-  baby/account lifecycle. Deployment must enforce OS-level egress and capacity.
+  in memory; TASK-011 implements process-local ownership/replacement/deletion/expiry.
+  Multi-process invalidation, direct/admin account deletion, and OS-level egress/
+  capacity require devops/security coordination (TASK-015/TASK-017) before family use.
 - OAuth/session implementation can create account-linking or IDOR risks; the
   completed boundary is covered by deterministic tests but needs live-service
   and deployment review.
@@ -441,6 +491,12 @@ Names only; values must never be stored here:
   back within five seconds. Deployment-wide egress/rate limits remain TASK-017.
 - Repository-wide Ruff reports 22 pre-existing lint findings in older backend
   files; TASK-010's six new files pass scoped checks (qa, TASK-016).
+- Prediction database/worker operations have four actual-worker slots and finite
+  coroutine budgets, but Python cannot forcibly cancel a DB commit/statement.
+  Deployment must configure DB connect/statement/lock deadlines and cluster-wide
+  rate/invalidation controls (devops, TASK-017). A timed-out POST after commit can
+  retain its safe fallback record; POST is not idempotent. PostgreSQL live-lock/
+  migration behavior needs operational verification beyond synthetic/DDL tests.
 - ML and generated summaries must not be interpreted as medical guidance.
 - Frontend browser state is limited to the display theme until authenticated
   domain state is introduced behind the API service boundary.
@@ -449,24 +505,36 @@ Names only; values must never be stored here:
 
 ## Current TODO
 
-- Implement TASK-011's layered authenticated prediction API and bounded,
-  owner-authorized history retrieval, including feature-window overlapping sleeps.
-- Integrate per-baby evaluated-artifact/worker lifecycle, authorized deletion,
-  and replacement without fitting in HTTP production inference.
-- Integrate the validated summary service after authorized numerical prediction,
-  with bounded provider calls and authorized persistence/deletion.
+- Implement TASK-012's fixed-provider, bounded authorized ElevenLabs audio flow.
+- Verify live Gemma/hosted retention, PostgreSQL locking/migration, and trusted
+  offline model installation in the operational environment.
+- Coordinate multi-process model invalidation/deletion, DB/resolver deadlines,
+  cluster-wide rates/egress, and account-deletion hooks before production family use.
 
 ## Last Completed Task
 
-TASK-010 — standalone guarded Gemma summaries with minimized input, reviewed
-grounded output, deterministic fallback, and bounded privacy-safe provider I/O.
+TASK-011 — authenticated prediction API with owner-scoped history, numerical
+model/baseline validation, persistence, guarded summaries, and model lifecycle.
 
 ## Last Commit
 
-`feat: add guarded Gemma sleep summaries` — local completion commit carrying
-this context and the LLM-agent result.
+`feat: add prediction API pipeline` — local completion commit carrying
+this context and the backend-agent result.
 
 ## Last Security Review
+
+TASK-011 complete boundary review: session/CSRF/origin, cross-user/foreign/deleted
+babies, ownership before body/history/ML and repeated writes, bounded strict input/
+queries/history, UTC overlaps/active context, parameterized SQL, locking/revision
+conflicts, atomic rollback, immutable source values, validated model output/baseline
+fallback, malicious/failing Gemma and stored text, private errors/logs/headers,
+offline-only evaluated-artifact installation, evidence/revision/capacity/replacement/
+expiry/deletion/shutdown, cancellation/timeouts, migration child preservation/
+precision/rollback/PostgreSQL DDL, and dependencies. All 604 backend/ML tests pass
+(89 added); scoped Ruff on 19 changed Python files, strict six-file mypy, dependency
+consistency and indexed-runtime/pinned-release audits pass. No CRITICAL/HIGH feature
+findings remain. Documented deployment items above have devops/security owners and
+TASK-015/TASK-017 targets. CPU-specific Torch wheel is unindexed; base release checked.
 
 TASK-010 standalone summary review: minimized three-scalar prompts, closed grounded
 output grammar, injection/advice/exfiltration/Unicode rejection, exact probability
@@ -505,6 +573,5 @@ No CRITICAL or HIGH findings remain.
 
 ## Next Recommended Task
 
-`TASK-011` — layered authenticated prediction API with bounded owner-scoped history
-retrieval, safe responses, evaluated per-baby model lifecycle, and authorized
-summary integration.
+`TASK-012` — bounded authorized ElevenLabs audio provider flow, with fixed-host
+security, provider failure isolation, external storage references, and retention.

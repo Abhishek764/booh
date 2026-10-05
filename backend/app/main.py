@@ -4,7 +4,9 @@ Versioned routes belong in feature-specific modules and must call services
 rather than implementing policy in the route layer.
 """
 
+import asyncio
 import os
+from contextlib import asynccontextmanager
 from threading import Lock
 from typing import Literal
 
@@ -17,13 +19,17 @@ from pydantic import BaseModel, ConfigDict
 from backend.app.config import AuthSettings, ConfigurationError, ImportLimits
 from backend.app.importers import CsvImportError
 from backend.app.middleware import AuthPrivacyMiddleware
+from backend.app.prediction_contracts import PredictionAPIError
 from backend.app.routes.auth import router as auth_router
 from backend.app.routes.babies import router as babies_router
 from backend.app.routes.events import router as events_router
 from backend.app.routes.imports import router as imports_router
+from backend.app.routes.predictions import router as predictions_router
 from backend.app.services.auth import AuthError
 from backend.app.services.babies import BabyError
 from backend.app.services.events import EventError
+from backend.app.services.prediction_models import PredictionModelRegistry
+from backend.app.services.summaries import build_summary_service
 
 API_V1_PREFIX = "/api/v1"
 APPLICATION_VERSION = "0.1.0"
@@ -128,6 +134,31 @@ async def import_error_handler(request: Request, exc: CsvImportError) -> JSONRes
     )
 
 
+async def prediction_error_handler(request: Request, exc: PredictionAPIError) -> JSONResponse:
+    del request
+    message = {
+        "resource_not_found": "The requested resource was not found.",
+        "insufficient_history": "More completed sleep history is needed for an estimate.",
+        "invalid_history": "The sleep history could not be used for an estimate.",
+        "history_changed": "The history changed. Please try again.",
+        "history_too_large": "The prediction history limit was exceeded.",
+        "invalid_request": "The request could not be processed.",
+        "unsupported_media_type": "A JSON request is required.",
+        "prediction_busy": "Predictions are temporarily busy.",
+        "prediction_rate_limited": "Please wait before requesting another prediction.",
+    }.get(exc.code, "The prediction service is temporarily unavailable.")
+    return JSONResponse(status_code=exc.status_code, content={"error": {"code": exc.code, "message": message}},
+                        headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "X-Content-Type-Options": "nosniff"})
+
+
+@asynccontextmanager
+async def lifespan(application: FastAPI):
+    try:
+        yield
+    finally:
+        await asyncio.to_thread(application.state.prediction_models.close)
+
+
 def create_app(
     auth_settings: AuthSettings | None = None, *, import_limits: ImportLimits | None = None
 ) -> FastAPI:
@@ -143,6 +174,7 @@ def create_app(
     application = FastAPI(
         title="BOOH API", version=APPLICATION_VERSION,
         docs_url=None, redoc_url=None, openapi_url=None,
+        lifespan=lifespan,
     )
     application.state.auth_settings = auth_settings
     application.state.auth_lock = Lock()
@@ -150,15 +182,26 @@ def create_app(
     application.state.event_service = None
     application.state.import_service = None
     application.state.import_limits = import_limits or ImportLimits.from_environment()
+    application.state.prediction_service = None
+    application.state.prediction_models = PredictionModelRegistry()
+    summary_environment = {name: os.environ[name] for name in (
+        "APP_ENV", "GEMMA_PROVIDER", "GEMMA_BASE_URL", "GEMMA_MODEL", "GEMMA_API_KEY",
+    ) if name in os.environ}
+    if auth_settings is not None:
+        # The frozen application environment is authoritative for all providers.
+        summary_environment["APP_ENV"] = auth_settings.app_env
+    application.state.summary_service = build_summary_service(summary_environment)
     application.add_exception_handler(RequestValidationError, request_validation_error_handler)
     application.add_exception_handler(AuthError, auth_error_handler)
     application.add_exception_handler(BabyError, baby_error_handler)
     application.add_exception_handler(EventError, event_error_handler)
     application.add_exception_handler(CsvImportError, import_error_handler)
+    application.add_exception_handler(PredictionAPIError, prediction_error_handler)
     application.include_router(auth_router, prefix=API_V1_PREFIX)
     application.include_router(babies_router, prefix=API_V1_PREFIX)
     application.include_router(events_router, prefix=API_V1_PREFIX)
     application.include_router(imports_router, prefix=API_V1_PREFIX)
+    application.include_router(predictions_router, prefix=API_V1_PREFIX)
     application.add_api_route(
         f"{API_V1_PREFIX}/health", health, response_model=HealthResponse,
         tags=["system"], summary="Check API availability",

@@ -121,7 +121,7 @@ class SqlAlchemyBabyRepository:
     ) -> BabyRecord | None:
         with session_scope(self._session_factory) as session:
             baby = session.scalar(
-                select(Baby).where(Baby.id == baby_id, Baby.user_id == owner_id)
+                select(Baby).where(Baby.id == baby_id, Baby.user_id == owner_id).with_for_update()
             )
             if baby is None:
                 return None
@@ -136,7 +136,7 @@ class SqlAlchemyBabyRepository:
     def delete_owned(self, *, baby_id: uuid.UUID, owner_id: uuid.UUID) -> bool:
         with session_scope(self._session_factory) as session:
             baby = session.scalar(
-                select(Baby).where(Baby.id == baby_id, Baby.user_id == owner_id)
+                select(Baby).where(Baby.id == baby_id, Baby.user_id == owner_id).with_for_update()
             )
             if baby is None:
                 return False

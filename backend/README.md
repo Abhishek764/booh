@@ -63,3 +63,18 @@ fields, malformed IDs, invalid dates, invalid IANA timezones, and oversized
 payloads. Event mutations require the same session-bound CSRF proof and exact
 frontend origin; timestamps are normalized to UTC and ambiguous local times
 are rejected. OpenAPI and interactive documentation remain disabled.
+
+The authenticated prediction routes are:
+
+- `POST /api/v1/babies/{baby_id}/predict`
+- `GET /api/v1/babies/{baby_id}/predictions`
+
+POST requires the same session-bound CSRF proof and exact origin. Send an empty
+body or JSON `{}`; context and model selection are server-owned. It loads bounded
+authorized history, computes features and an approved model/explicit baseline,
+persists the numerical result with safe local text, and then validates/persists
+a Gemma summary or fallback. GET has bounded limit/offset and returns stored
+numerical predictions with revalidated summaries. All numerical values remain
+independent of Gemma. Run Alembic `upgrade head` for the probability-precision
+migration. Full contracts, failures, budgets, optional offline model lifecycle,
+and security review are in [`docs/prediction-api.md`](../docs/prediction-api.md).

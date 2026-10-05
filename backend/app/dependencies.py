@@ -4,21 +4,25 @@ from __future__ import annotations
 
 from typing import Annotated, cast
 
-from fastapi import Header, Request
+from fastapi import Depends, Header, Request
 from sqlalchemy.exc import SQLAlchemyError
 
 from backend.app.config import AuthSettings, ConfigurationError
 from backend.app.database import create_database_engine, create_session_factory
 from backend.app.importers import CsvImportError
+from backend.app.prediction_contracts import PredictionAPIError
 from backend.app.providers.google import GoogleOAuthProvider
 from backend.app.repositories.auth import SqlAlchemyAuthRepository
 from backend.app.repositories.babies import SqlAlchemyBabyRepository
 from backend.app.repositories.events import SqlAlchemyEventRepository
 from backend.app.repositories.imports import SqlAlchemyImportRepository
+from backend.app.repositories.predictions import SqlAlchemyPredictionRepository
 from backend.app.services.auth import AuthError, AuthService, Principal
 from backend.app.services.babies import BabyError, BabyService
 from backend.app.services.events import EventError, EventService
 from backend.app.services.imports import ImportService
+from backend.app.services.prediction_models import PredictionModelRegistry
+from backend.app.services.predictions import PredictionPipelineService
 
 
 def build_auth_service(settings: AuthSettings | None = None) -> AuthService:
@@ -72,12 +76,12 @@ def get_csrf_protected_principal(
     return principal
 
 
-def build_baby_service() -> BabyService:
+def build_baby_service(models: PredictionModelRegistry | None = None) -> BabyService:
     """Construct the baby service from the explicitly configured database."""
 
     engine = create_database_engine()
     repository = SqlAlchemyBabyRepository(create_session_factory(engine))
-    return BabyService(repository)
+    return BabyService(repository, on_change=None if models is None else models.invalidate)
 
 
 def get_baby_service(request: Request) -> BabyService:
@@ -90,19 +94,19 @@ def get_baby_service(request: Request) -> BabyService:
         configured = getattr(request.app.state, "baby_service", None)
         if configured is None:
             try:
-                configured = build_baby_service()
+                configured = build_baby_service(request.app.state.prediction_models)
             except (RuntimeError, SQLAlchemyError):
                 raise BabyError("service_unavailable", 503) from None
             request.app.state.baby_service = configured
         return cast(BabyService, configured)
 
 
-def build_event_service() -> EventService:
+def build_event_service(models: PredictionModelRegistry | None = None) -> EventService:
     """Construct the event service from the explicitly configured database."""
 
     engine = create_database_engine()
     repository = SqlAlchemyEventRepository(create_session_factory(engine))
-    return EventService(repository)
+    return EventService(repository, on_change=None if models is None else models.invalidate)
 
 
 def get_event_service(request: Request) -> EventService:
@@ -115,7 +119,7 @@ def get_event_service(request: Request) -> EventService:
         configured = getattr(request.app.state, "event_service", None)
         if configured is None:
             try:
-                configured = build_event_service()
+                configured = build_event_service(request.app.state.prediction_models)
             except (RuntimeError, SQLAlchemyError):
                 raise EventError("service_unavailable", 503) from None
             request.app.state.event_service = configured
@@ -134,11 +138,34 @@ def get_import_service(request: Request) -> ImportService:
             try:
                 engine = create_database_engine()
                 repository = SqlAlchemyImportRepository(create_session_factory(engine))
-                configured = ImportService(repository, limits=request.app.state.import_limits)
+                configured = ImportService(repository, limits=request.app.state.import_limits,
+                                           on_change=request.app.state.prediction_models.invalidate)
             except (RuntimeError, SQLAlchemyError):
                 raise CsvImportError("service_unavailable", 503) from None
             request.app.state.import_service = configured
         return cast(ImportService, configured)
+
+
+def get_prediction_service(
+    request: Request, principal: Annotated[Principal, Depends(get_current_principal)],
+) -> PredictionPipelineService:
+    del principal  # Authentication must run before constructing database/provider wiring.
+    configured = getattr(request.app.state, "prediction_service", None)
+    if configured is not None:
+        return cast(PredictionPipelineService, configured)
+    with request.app.state.auth_lock:
+        configured = getattr(request.app.state, "prediction_service", None)
+        if configured is None:
+            try:
+                engine = create_database_engine()
+                configured = PredictionPipelineService(
+                    SqlAlchemyPredictionRepository(create_session_factory(engine)),
+                    summaries=request.app.state.summary_service, models=request.app.state.prediction_models,
+                )
+            except (RuntimeError, SQLAlchemyError):
+                raise PredictionAPIError("service_unavailable") from None
+            request.app.state.prediction_service = configured
+        return cast(PredictionPipelineService, configured)
 
 
 __all__ = [
@@ -151,4 +178,5 @@ __all__ = [
     "get_current_principal",
     "get_event_service",
     "get_import_service",
+    "get_prediction_service",
 ]

@@ -16,8 +16,9 @@ Offline workflows
 The production component is `ml.prediction.service.PredictionService`. It
 consumes the selected baby's already authorized normalized history, not HTTP
 requests or database connections. Models never query persistence. The existing
-feature service remains independent and standard-library-only. Prediction routes
-and owner-scoped history retrieval are the next API task.
+feature service remains independent and standard-library-only. The authenticated
+routes and bounded owner-scoped retrieval now compose this engine through the
+backend pipeline; see [prediction API](prediction-api.md).
 
 **Target:** remaining minutes in the current sleep bout, and probability that the
 bout ends within the next 60 minutes. A recorded sleep end is the numerical wake
@@ -196,8 +197,11 @@ process, 4 GiB address-space budget per worker, 120-second fit deadline (maximum
 180), and 10-second prediction deadline (maximum 30). A timeout/crash terminates
 the worker, deletes temporary checkpoint copies, and returns worker capacity.
 Call `TabPFNModel.close()` on approved models when replacing/deleting them.
-Fit state remains in process memory until closure; deployment must bound its
-lifetime and couple deletion to the authorized baby/account lifecycle.
+Fit state remains in process memory until closure. TASK-011 now provides bounded
+owner/baby registry leases, revision-bound offline installation, mutation/deletion
+invalidation, seven-day expiry, replacement close, and application shutdown close.
+Deployment must coordinate multi-process invalidation/account deletion; see
+`docs/prediction-api.md`.
 
 ## Production selection and fallback policy
 

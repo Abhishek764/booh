@@ -37,8 +37,9 @@ summary = await service.summarize_prediction(validated_prediction)
 only the three approved numbers. `summarize` also accepts the independent
 `SummaryInput` DTO or an exact three-key dictionary for standalone callers and
 tests. These interfaces do not establish resource ownership themselves: callers
-must already have authorized the source prediction. TASK-011 owns authenticated
-HTTP integration, ownership checks, prediction lifecycle, and persistence.
+must already have authorized the source prediction. TASK-011 now integrates this
+service after numerical persistence with repeated ownership checks and summary-only
+writes; see [prediction API](prediction-api.md).
 
 ## Input and privacy
 
@@ -183,6 +184,10 @@ standalone service. Buffers are call/worker-scoped and connections close on ever
 path. A hosted provider still sees the minimized numerical values: its handling
 and retention must be reviewed before production family data is sent. Only a
 reviewed configured endpoint should serve the selected Gemma weights.
+
+The authenticated TASK-011 pipeline separately persists validated summary text
+alongside its numerical prediction using owner-scoped repositories. Deleting the
+owned baby cascades these records; raw prompts/responses remain unpersisted.
 
 The implementation is verified with synthetic stubs and actual loopback HTTP,
 including deadline and failure paths. A live Gemma server/weights have not been

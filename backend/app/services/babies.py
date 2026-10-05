@@ -29,9 +29,11 @@ class BabyService:
         repository: BabyRepository,
         *,
         error_factory: Callable[[Exception], BabyError] | None = None,
+        on_change: Callable[[uuid.UUID, uuid.UUID], None] | None = None,
     ) -> None:
         self._repository = repository
         self._error_factory = error_factory or self._default_error
+        self._on_change = on_change
 
     def list_babies(self, principal: Principal) -> list[BabyRecord]:
         try:
@@ -87,6 +89,8 @@ class BabyService:
             raise self._error_factory(exc) from None
         if baby is None:
             raise BabyError("resource_not_found", 404)
+        if self._on_change is not None:
+            self._on_change(principal.user_id, baby_id)
         return baby
 
     def delete_baby(self, principal: Principal, *, baby_id: uuid.UUID) -> None:
@@ -98,6 +102,8 @@ class BabyService:
             raise self._error_factory(exc) from None
         if not deleted:
             raise BabyError("resource_not_found", 404)
+        if self._on_change is not None:
+            self._on_change(principal.user_id, baby_id)
 
     @staticmethod
     def _default_error(exc: Exception) -> BabyError:

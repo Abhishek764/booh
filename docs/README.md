@@ -8,4 +8,5 @@ to be reflected in `CONTEXT.md`.
 - [Feature definitions](features.md)
 - [CSV imports](imports.md)
 - [Numerical predictions](predictions.md)
+- [Authenticated prediction API](prediction-api.md)
 - [Guarded Gemma summaries](summaries.md)

@@ -123,6 +123,20 @@ def strict_json_object(text: str) -> dict[str, object]:
 class OutputValidator:
     """Only accept reviewed grounded sentences; new facts/advice cannot pass."""
 
+    def validate_text(self, text: object, prediction: SummaryInput) -> str:
+        """Revalidate stored/orchestrated prose without splitting decimal numbers."""
+        prediction.__post_init__()
+        if type(text) is not str or not 1 <= len(text) <= MAX_SUMMARY_CHARS or not text.isascii():
+            raise SummaryValidationError("invalid_summary_output")
+        first, detail, uncertainty = sentence_choices(prediction)
+        for opening in first:
+            choices = [opening]
+            choices.extend(f"{opening} {second}" for second in detail + uncertainty)
+            choices.extend(f"{opening} {second} {last}" for second in detail for last in uncertainty)
+            if text in choices:
+                return text
+        raise SummaryValidationError("ungrounded_summary_output")
+
     def validate(self, output: object, prediction: SummaryInput) -> str:
         prediction.__post_init__()
         if (

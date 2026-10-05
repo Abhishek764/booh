@@ -12,6 +12,7 @@ from sqlalchemy import (
     CheckConstraint,
     Date,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -318,8 +319,8 @@ class Prediction(Base):
         DateTime(timezone=True), nullable=False
     )
     expected_sleep_minutes: Mapped[int] = mapped_column(Integer, nullable=False)
-    wake_probability_within_60m: Mapped[Decimal] = mapped_column(
-        Numeric(5, 4), nullable=False
+    wake_probability_within_60m: Mapped[float] = mapped_column(
+        Float(precision=53), nullable=False
     )
     baseline_expected_sleep_minutes: Mapped[int] = mapped_column(
         Integer, nullable=False

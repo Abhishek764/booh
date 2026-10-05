@@ -1,4 +1,4 @@
-"""Bounded auth responses and privacy headers, including CORS/error responses."""
+"""Bounded auth/baby surfaces and privacy headers, including CORS/error responses."""
 
 from starlette.datastructures import MutableHeaders
 from starlette.responses import JSONResponse
@@ -10,7 +10,9 @@ class AuthPrivacyMiddleware:
         self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http" or not scope["path"].startswith("/api/v1/auth/"):
+        path = scope.get("path", "")
+        private = path.startswith("/api/v1/auth/") or path == "/api/v1/babies" or path.startswith("/api/v1/babies/")
+        if scope["type"] != "http" or not private:
             await self.app(scope, receive, send)
             return
 

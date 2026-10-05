@@ -59,10 +59,12 @@ class ImportService:
     def __init__(
         self, repository: OwnedImportRepository, *, limits: ImportLimits,
         clock: Callable[[], datetime] = utc_now,
+        on_change: Callable[[uuid.UUID, uuid.UUID], None] | None = None,
     ) -> None:
         self._repository = repository
         self._limits = limits
         self._clock = clock
+        self._on_change = on_change
         self._slots = BoundedSemaphore(MAX_CONCURRENT_IMPORTS)
 
     def _owned_timezone(self, principal: Principal, baby_id: uuid.UUID) -> str:
@@ -129,4 +131,6 @@ class ImportService:
         parsed.summary.rows_imported = result.imported
         parsed.summary.duplicates += result.duplicates
         parsed.summary.rows_skipped += result.duplicates
+        if result.imported and self._on_change is not None:
+            self._on_change(principal.user_id, baby_id)
         return parsed.summary

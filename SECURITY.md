@@ -272,7 +272,7 @@ the canonical configuration.
 ### Numerical prediction boundary
 
 - Numerical inference has no Gemma, LLM, prompt, or text-provider dependency.
-  Immutable validated predictions are created before any future summary flow.
+  Immutable validated predictions are created before the guarded summary flow.
 - The explicit last-seven-day baseline uses only the selected baby's completed
   bouts and requires three independent surviving samples; sparse evidence yields
   `insufficient_history`, not a fabricated time/probability.
@@ -292,8 +292,9 @@ the canonical configuration.
 - Workers receive numerical matrices and minimal training provenance, have finite row/process/memory/time
   budgets, and are explicitly closed on rejected candidates or replacement.
   Fitted user context stays in process memory; original histories are not written
-  to model artifacts. Account/baby deletion must close associated workers when
-  the authenticated prediction lifecycle is integrated in TASK-011.
+  to model artifacts. TASK-011 closes process-local workers on owned baby deletion,
+  changes, expiry, replacement, and shutdown. Account/multi-process deletion needs
+  the coordinated lifecycle hooks documented in the API review below.
 - Model files/fitted state are Git-ignored. Optional dependency review repaired
   the setuptools vulnerability by pinning 83.0.0. Installed-runtime and pinned
   TabPFN/PyTorch/setuptools release audits report no known vulnerabilities; the
@@ -302,6 +303,65 @@ the canonical configuration.
 - Synthetic numerical/privacy tests and the actual local CPU benchmark are
   documented in `docs/predictions.md`. Synthetic accuracy is not a real-family
   performance or medical claim; each selected baby's candidate must be evaluated.
+
+### Authenticated prediction API boundary (TASK-011)
+
+- POST `/api/v1/babies/{baby_id}/predict` and GET
+  `/api/v1/babies/{baby_id}/predictions` require live server authentication. POST
+  additionally requires session-bound CSRF and exact origin. Authentication and
+  baby ownership precede body/history/ML/provider use; foreign and missing resources
+  share fixed 404 responses. Dependencies cannot wire prediction DB/provider work
+  before authenticating. The app's frozen environment is authoritative for Gemma.
+- Accept empty/strict `{}` input only; server UTC time, profile, history, model,
+  and numeric outputs cannot be mass-assigned. Bound actual body bytes to 1 KiB,
+  receiving time to five seconds, queries to 8 KiB, list limit to 100 and offset
+  to 10,000, and history to 10,000 plus a sentinel row. Reject unknown fields,
+  nonfinite/duplicate JSON, text/URL/model smuggling, malformed IDs, and invalid
+  metadata. Event snapshots and all persistence/list joins include the owner.
+- Keep feature/model/baseline logic independent of HTTP/persistence. Only locally
+  evaluated baby/revision-bound ApprovedModels are installable through a trusted
+  offline Python interface; no request fits/evaluates/downloads or uploads models.
+  Baseline evidence is mandatory; invalid model types/ranges/NaN/Infinity/booleans
+  use the explicit baseline, while insufficient/invalid history fails safely.
+- Revalidate final numerical/provenance output before writes. Immutable independent
+  summary inputs and locally revalidated text prevent Gemma modifying any numerical
+  source. The summary persistence method has no numerical write parameters.
+  Stored numerical values/text are revalidated on GET; unsafe prose becomes local
+  fallback. Public responses exclude private feature/provider/exception metadata.
+- Recheck ownership/revision under coordinated PostgreSQL baby locks. History/profile
+  changes during inference return conflict before writing/provider work. Numerical
+  prediction plus local fallback summary commit atomically first; failures roll back
+  without Gemma. Provider calls hold no DB locks. Final summary writes recheck owner;
+  failure preserves the initial safe record and returns fixed 503. Deletion during
+  provider work returns 404 and cascades persisted outputs. POST is not idempotent.
+- Reviewed Alembic migration changes Numeric(5,4) to double precision, preserving
+  the validated Python float across API/storage/summary grounding. Upgrade, schema
+  parity, child preservation, rollback, and PG explicit-cast DDL tests pass. SQLite
+  foreign-key-enabled batch parent rebuilds fail closed before possible cascades.
+- Four pipeline slots/four actual process worker slots, 45-second await budget,
+  and ten generations per owner per 60 seconds bound expensive work. Cancelled
+  coroutines cannot release active worker capacity; pre-commit cancellation stops
+  subsequent writes, but cannot undo an already-running commit. Deployers own DB
+  connect/statement/lock deadlines and deployment-wide rates (devops, TASK-017).
+- Two owner/baby models have serialized replacement/close leases, failed/stale/
+  revision invalidation, mutation/import/profile/deletion callbacks, seven-day TTL,
+  owner-clear hook, and shutdown close. Rejected offline candidates close. Expired
+  cancelled timers cannot evict replacements. Multi-process/direct-account deletion
+  requires coordinated lifecycle erasure before production family context retention
+  (devops/security, TASK-015/TASK-017); no account deletion endpoint exists yet.
+- Baby responses/errors have no-store/no-referrer/nosniff headers; raw histories,
+  names, worker state, SQL/private exceptions, model/provider payloads, and secrets
+  never enter errors/logs. No prompt/raw response/history arrays are persisted;
+  only validated numerical metadata/summary text uses existing baby cascade retention.
+- Full review and 89 added deterministic API/security/migration cases cover the
+  requested authorization, cross-user, insufficient-history, model-failure,
+  baseline-fallback, Gemma-failure, invalid-output, and persistence-failure paths,
+  plus race/lifecycle/injection/budget/privacy regressions. All 604 tests pass;
+  changed-file Ruff, strict core mypy, dependency consistency and indexed-runtime/
+  pinned-release audits pass. No new runtime dependency, real data, credential,
+  CRITICAL or HIGH feature finding. CPU Torch wheel is unindexed; matching base
+  release checked. Live Gemma and PostgreSQL operational verification remain in
+  `docs/prediction-api.md`, with deployment-item owners/targets recorded there.
 
 ## Docker and deployment security
 

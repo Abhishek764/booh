@@ -152,7 +152,7 @@ class SqlAlchemyEventRepository:
     ) -> EventRecord | None:
         with session_scope(self._session_factory) as session:
             baby_exists = session.scalar(
-                select(Baby.id).where(Baby.id == baby_id, Baby.user_id == owner_id)
+                select(Baby.id).where(Baby.id == baby_id, Baby.user_id == owner_id).with_for_update()
             )
             if baby_exists is None:
                 return None
@@ -189,6 +189,9 @@ class SqlAlchemyEventRepository:
         changes: dict[str, object],
     ) -> EventRecord | None:
         with session_scope(self._session_factory) as session:
+            # Every history mutation takes the same baby lock as prediction writes.
+            session.scalar(select(Baby.id).join(Event, Event.baby_id == Baby.id)
+                           .where(Event.id == event_id, Baby.user_id == owner_id).with_for_update(of=Baby))
             event = session.scalar(
                 select(Event)
                 .join(Baby, Event.baby_id == Baby.id)
@@ -206,6 +209,8 @@ class SqlAlchemyEventRepository:
 
     def delete_owned_event(self, *, event_id: uuid.UUID, owner_id: uuid.UUID) -> bool:
         with session_scope(self._session_factory) as session:
+            session.scalar(select(Baby.id).join(Event, Event.baby_id == Baby.id)
+                           .where(Event.id == event_id, Baby.user_id == owner_id).with_for_update(of=Baby))
             event = session.scalar(
                 select(Event)
                 .join(Baby, Event.baby_id == Baby.id)

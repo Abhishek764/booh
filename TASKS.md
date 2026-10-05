@@ -15,7 +15,7 @@ understood. Status values are `DONE`, `READY`, `BLOCKED`, or `PLANNED`.
 | `TASK-007` | data/backend | Implement the bounded Huckleberry CSV importer. | `TASK-006` | `backend/`, `tests/`, `docs/` | `DONE` | Supported synthetic fixtures import deterministically; malformed, oversized, duplicate, and impossible rows are handled explicitly. | Upload limits, memory-only originals, formula-injection defense, deletion path, isolation. |
 | `TASK-008` | ml/backend | Implement the versioned feature service and deterministic seven-day baseline. | `TASK-006` | `ml/`, `backend/`, `tests/` | `DONE` | Feature versioning, sparse-history behavior, reproducible predictions, and baseline evaluation pass. | Authorized user data only, no cross-user pooling, explicit uncertainty, no medical claims. |
 | `TASK-009` | ml | Add the isolated TabPFN adapter and evaluate it against the baseline. | `TASK-008` | `ml/`, `tests/`, `docs/` | `DONE` | Offline evaluation documents when TabPFN improves the baseline and when it is unavailable. | Bounded resources, model/version provenance, sparse-data safety, no training leakage. |
-| `TASK-011` | backend | Expose the layered prediction API. | `TASK-004`, `TASK-008`, `TASK-009` | `backend/`, `tests/`, `docs/` | `READY` | `/api/v1` contracts, auth, validation, ownership, errors, and model metadata are tested and documented. | Thin routes, IDOR tests, rate/size limits, no raw private history in logs/errors. |
+| `TASK-011` | backend | Expose the layered prediction API. | `TASK-004`, `TASK-008`, `TASK-009`, `TASK-010` | `backend/`, `tests/`, `docs/` | `DONE` | Authenticated prediction POST/GET, bounded owned history, numerical/baseline validation, exact persistence, guarded summaries, model lifecycle, migrations, and errors are tested and documented. | Thin routes, IDOR/CSRF tests, rate/size/worker limits, immutable numbers, no raw private history in logs/errors. |
 | `TASK-010` | llm/security | Add the standalone Gemma summary service for short validated summaries. | `TASK-009` | `backend/`, `tests/`, `docs/` | `DONE` | Prompt minimization, injection tests, strict output validation, bounded length, and deterministic fallback pass; HTTP integration follows TASK-011. | Prompt injection defense, no tools/secrets, output validation, privacy-preserving logs. |
 | `TASK-012` | llm/backend | Add the ElevenLabs TTS provider abstraction and bounded audio flow. | `TASK-011` | `backend/`, `frontend/`, `tests/`, `docs/` | `PLANNED` | Provider failures degrade safely; audio access is authorized, bounded, and retention-controlled. | Fixed provider host, secret isolation, SSRF defense, content/privacy review. |
 | `TASK-013` | frontend | Build the accessible nighttime dashboard and prediction presentation. | `TASK-010`, `TASK-012` | `frontend/`, `tests/`, `docs/` | `PLANNED` | Authenticated users see their own validated prediction and uncertainty; loading/error/empty states work. | XSS-safe rendering, no secrets, no cross-user data, no medical/guarantee language. |
@@ -25,6 +25,17 @@ understood. Status values are `DONE`, `READY`, `BLOCKED`, or `PLANNED`.
 | `TASK-017` | devops | Containerize and deploy through Docker and Render. | `TASK-016` | `Dockerfile*`, `render.yaml`, `docs/`, `tests/` | `PLANNED` | Reproducible build, health checks, migrations, observability, rollback, and runtime configuration are documented. | Non-root image, no baked secrets, pinned dependencies, least privilege, secure egress. |
 
 ## Historical alignment
+
+Completed claim: `TASK-011` — backend/security, user-started authenticated prediction
+POST/GET pipeline with persisted numerical results and guarded Gemma summaries.
+Dependencies TASK-004, TASK-008, TASK-009, and summary TASK-010 are DONE.
+Q&A check: no blocking questions. No fitting/evaluation in HTTP requests; only
+owner-bound offline-approved models may be installed for inference.
+Completion: 89 added pipeline/security/migration tests and all 604 backend/ML tests
+pass; scoped Ruff/strict mypy, dependency checks/audits, migration parity/rollback/
+PostgreSQL DDL, and full security review pass. Result: `.agent/backend/RESULT.md`.
+Contracts/review: `docs/prediction-api.md`. Commit: `feat: add prediction API pipeline`
+(the requested one-logical-task completion commit).
 
 Completed claim: `TASK-010` — llm/security, explicitly user-started standalone
 summary service using TASK-009's completed numerical result contract. Its service
