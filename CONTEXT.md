@@ -9,13 +9,14 @@ uncertain, and not medical advice.
 
 ## Current Phase
 
-Phase 1 — Authorized history and ML feature foundation. The repository foundation,
+Phase 1 — Numerical prediction foundation. The repository foundation,
 PostgreSQL/Alembic schema, Next.js application boundary, and OAuth/session
 authorization are complete. Baby-owned event tracking and the bounded CSV import
 API are implemented. The database includes events, predictions, summaries, and
 external audio references. The independent, versioned numerical feature service
-is implemented. The next dependency-ready milestone is the explicit deterministic
-seven-day baseline and its sparse-history evaluation.
+is implemented, along with the explicit seven-day baseline, local optional TabPFN
+adapter, offline held-out evaluation, and safe production numerical inference.
+The next dependency-ready milestone is the authenticated layered prediction API.
 
 ## Hacktoberfest 2026 challenge context
 
@@ -186,9 +187,50 @@ Malformed records fail with fixed private-data-free errors. The service is
 stateless, has no logging/output/provider calls, and omits sensitive values from
 automatic DTO/vector/metadata representations. All 93 synthetic ML tests pass.
 
-TabPFN is planned for user-history prediction after feature and data boundaries
-are established. A deterministic seven-day baseline is required first and must
-remain explicit, reproducible, and evaluated for sparse histories.
+`ml.prediction.service.PredictionService` now composes `FeatureService`, an
+evaluated optional `TabPFNModel`, and explicit `BaselineModel`. It returns
+remaining `expected_sleep_minutes`, `wake_probability_60m`, `baseline_minutes`,
+and an honest selected `model_version`; Gemma never computes or modifies these
+numbers. It consumes already authorized history, validates selected-baby scope,
+and is independent of FastAPI/persistence. The HTTP resource/lifecycle boundary
+remains TASK-011.
+
+`baseline-7d-v1` uses unique, positive, nonoverlapping sleep bouts completed in
+the preceding seven elapsed days. For elapsed sleep e, use historical d > e:
+mean(d - e) and fraction(d - e <= 60). Three surviving independent samples are
+required; missing evidence fails safely with `insufficient_history`.
+
+`ml.training` and `ml.evaluation` are offline-only. Snapshots at 0/30/60 elapsed
+minutes use causal features, with completion targets kept separate. The latest
+five whole bouts are held out (5–16 configurable); training labels must be known
+by the first holdout start. Limit to 64 bouts/192 snapshots and 10,000 input
+events; require 20 eligible training bouts and three rows of each binary class.
+The prediction matrix is the original 13 features plus elapsed minutes, version
+`sleep-remaining-v1`. Only missing optional age is eligible for TabPFN.
+
+The actual local SDK uses TabPFN 9.1.0's regressor and classifier, explicit v2
+default checkpoints, CPU, seed 0, and two estimators. Checkpoints are locally
+operator-provisioned and SHA-256-verified; no runtime download, hosted inference,
+Gemma, or provider transfer occurs. A spawned worker has a sanitized environment,
+offline/socket guards, silent logs/output, 4-GiB address-space budget, bounded
+fit/predict deadlines, and two-worker concurrency cap. Optional runtime pins are
+in `ml/requirements-tabpfn.txt`; baseline/features work without that environment.
+
+Promotion requires non-worse held-out MAE and Brier, with at least one strictly
+better, and binds the fitted candidate to baby/training/evaluation provenance.
+Inference never fits/evaluates. It rejects foreign/future/stale artifacts, missing
+features, unsupported elapsed time, and malformed/NaN/infinite output. Default
+fallback is explicitly labeled `baseline-7d-v1`; fail-closed mode is available.
+Fitted context stays only in the worker until close; rejected candidates are
+closed and lifecycle deletion/replacement integration belongs to TASK-011.
+
+Real isolated CPU evaluation on the repeating synthetic 42-bout fixture (31
+eligible training bouts, five held-out bouts/14 snapshots) measured baseline MAE
+15.11203896451008 minutes / Brier 0.1250567942732407 versus TabPFN MAE
+0.03270927133440692 / Brier 0.0000007967734940994023, reproduced twice. This
+verifies synthetic integration, not real-family accuracy/calibration. Each baby's
+model must pass its own held-out gate. Details, checkpoint hashes, fallback
+semantics, metrics, and reproducible commands are in `docs/predictions.md`.
 
 ## LLM
 
@@ -296,7 +338,10 @@ Names only; values must never be stored here:
   (local importer completion commit).
 - `TASK-008` feature-engineering slice — independent, versioned numerical feature
   service with validated vectors and deterministic edge/privacy tests (local
-  feature completion commit). The roadmap task remains open for the baseline.
+  feature completion commit `a56e491`).
+- `TASK-008` baseline/evaluation completion and `TASK-009` — explicit seven-day
+  baseline, real local TabPFN, causal whole-bout heldout MAE/Brier evaluation,
+  and production numerical service with safe fallback (local engine commit).
 
 ## Engineering Decisions
 
@@ -323,6 +368,12 @@ Names only; values must never be stored here:
   Treat observed zeros as lower bounds, not proof of complete history.
 - Exclude incomplete/future-completed sleeps from durations and mask future ends
   before deduplication; merge completed intervals for rolling elapsed sleep.
+- Keep numerical prediction completely separate from LLM summaries, and offline
+  fitting/evaluation completely separate from production inference.
+- Promote a selected baby's fitted TabPFN only after chronological evaluation
+  beats/equalizes both baseline metrics and strictly improves at least one.
+- Use explicit local v2 checkpoints and verified hashes; no automatic model
+  downloads/hosted-family-data transfer. Identify baseline fallback honestly.
 
 ## Known Risks
 
@@ -330,7 +381,12 @@ Names only; values must never be stored here:
 - Sparse or irregular event histories can produce misleading confidence.
 - Feature observation span does not establish logging completeness; the sparse
   quality heuristic is not model confidence. Incomplete sleeps contribute no
-  inferred duration, and future baseline policy must preserve these distinctions.
+  inferred duration, and baseline/model consumers must preserve these distinctions.
+- Synthetic TabPFN benchmark success is not evidence of real-family performance.
+  Small held-out samples and empirical baseline frequencies remain uncertain.
+- Checkpoints are trusted operator artifacts, not uploads. Fitted context remains
+  in memory; TASK-011 must couple worker replacement/deletion to ownership and
+  baby/account lifecycle. Deployment must enforce OS-level egress and capacity.
 - OAuth/session implementation can create account-linking or IDOR risks; the
   completed boundary is covered by deterministic tests but needs live-service
   and deployment review.
@@ -352,20 +408,19 @@ Names only; values must never be stored here:
 
 ## Current TODO
 
-- Complete TASK-008's explicit deterministic baseline and sparse-history
-  evaluation using the versioned feature boundary before TabPFN.
-- Integrate bounded, owner-authorized history retrieval with the baseline; include
-  completed sleep intervals that overlap the feature window.
+- Implement TASK-011's layered authenticated prediction API and bounded,
+  owner-authorized history retrieval, including feature-window overlapping sleeps.
+- Integrate per-baby evaluated-artifact/worker lifecycle, authorized deletion,
+  and replacement without fitting in HTTP production inference.
 
 ## Last Completed Task
 
-`TASK-008` feature-engineering slice — independent, versioned numerical features
-from normalized history, with explicit missingness, provenance, UTC/local time
-semantics, privacy/scope validation, and edge-case unit tests.
+Prediction engine — TASK-008 baseline/evaluation completion followed by TASK-009
+local TabPFN adapter, held-out comparison, and safe production numerical service.
 
 ## Last Commit
 
-`feat: add sleep prediction feature engineering` — local completion commit carrying
+`feat: add TabPFN prediction engine` — local completion commit carrying
 this context and the ML-agent result.
 
 ## Last Security Review
@@ -382,13 +437,18 @@ cross-user import isolation, semantic duplicates, transaction rollback, dependen
 checks, and secret review. Feature review additionally covers fixed single-baby
 scope, bounded iterables, finite/range-validated output, explicit sparse-history
 metadata, future-label exclusion, silent/private errors and representations,
-stateless calls, and a standard-library-only dependency boundary. All 244
-backend/ML tests pass; targeted Ruff and strict ML mypy checks pass. This feature
-adds no runtime dependency; the prior pinned dependency audit reported no known
-vulnerabilities. No CRITICAL or HIGH findings were identified.
+stateless calls, and a standard-library-only feature boundary. Prediction review
+covers causal labels/whole-bout holdout, local hash-verified checkpoint loading,
+bounded SDK workers, selection/isolation/staleness, finite numerical output,
+explicit baseline/fail-closed behavior, and exclusion of Gemma/fitting/evaluation
+from inference. All 335 backend/ML tests pass; Ruff, strict ML mypy, compilation,
+and installed dependency consistency checks pass. Dependency review fixed the
+optional runtime's setuptools vulnerability by pinning 83.0.0. Installed-runtime
+and pinned ML-release audits report no known vulnerabilities (pip-audit cannot
+index the CPU-specific Torch wheel; its matching base release was checked).
+No CRITICAL or HIGH findings remain.
 
 ## Next Recommended Task
 
-`TASK-008` baseline slice — implement and evaluate the explicit deterministic
-seven-day baseline using the completed authorized event/import and feature
-boundaries. Keep sparse-history policy explicit before TabPFN.
+`TASK-011` — layered authenticated prediction API with bounded owner-scoped history
+retrieval, safe responses, and evaluated per-baby model lifecycle.

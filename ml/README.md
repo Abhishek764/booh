@@ -18,5 +18,26 @@ and the input contract. Run the deterministic synthetic unit tests from the root
 .venv/bin/python -m pytest ml/tests -q
 ```
 
-The next TASK-008 slice is the explicit deterministic seven-day baseline and its
-evaluation; the completed feature layer provides its independent input boundary.
+The numerical engine now lives in `ml/prediction/`: an explicit seven-day
+`BaselineModel`, optional locally fitted `TabPFNModel`, and production
+`PredictionService`. It produces remaining-sleep minutes, wake probability within
+60 minutes, baseline minutes, and an honest selected model version. Gemma has no
+role in numerical predictions.
+
+`ml/training.py` and `ml/evaluation.py` are offline-only: causal snapshot labels,
+whole-bout chronological holdout, MAE/Brier scores, and a baseline-comparison
+promotion gate. Production inference consumes evaluated fitted artifacts and
+never trains or evaluates. Missing/unavailable/invalid TabPFN paths explicitly
+use the baseline or fail closed; sparse baseline evidence returns no invented
+prediction.
+
+See [`docs/predictions.md`](../docs/predictions.md) for targets, baseline/fallback,
+model/feature versions, optional CPU runtime, local checkpoint trust/retention,
+resource limits, and measured **synthetic-only** real TabPFN evaluation.
+
+```text
+.venv/bin/python -m ml.benchmark
+```
+
+The next task is TASK-011's layered authenticated prediction API and authorized
+history/artifact lifecycle integration.

@@ -40,7 +40,7 @@ def test_feature_package_imports_only_standard_library_modules():
     import sys
 
     directory = Path(__file__).parents[1]
-    for path in directory.glob("*.py"):
+    for path in (directory / "features.py", directory / "__init__.py"):
         tree = ast.parse(path.read_text())
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):

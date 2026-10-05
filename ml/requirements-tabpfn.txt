@@ -1,0 +1,5 @@
+# Optional local model runtime; core baseline/features require no ML packages.
+# Install CPU-only torch from the official PyTorch CPU index first (see docs).
+tabpfn==9.1.0
+torch==2.14.1
+setuptools==83.0.0

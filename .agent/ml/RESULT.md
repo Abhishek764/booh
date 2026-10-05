@@ -1,53 +1,87 @@
 # ML Agent Result
 
-TASK: TASK-008 feature-engineering slice — versioned sleep-history features
-STATUS: DONE — feature-engineering slice; TASK-008 baseline acceptance remains open
+TASK: Prediction engine — TASK-008 baseline prerequisite, then TASK-009
+STATUS: DONE
 FILES CHANGED:
-- ml/__init__.py; ml/features.py — standard-library-only input protocol/DTO,
-  definitions, numerical-vector validation, deterministic feature service,
-  provenance/sparse-history metadata, and private error/representation contracts.
-- ml/tests/test_features.py; ml/tests/test_feature_privacy.py — synthetic tests
-  for every feature and requested edge case, scope/privacy, bounds, future-label
-  exclusion, statelessness, and independent imports.
-- ml/README.md; docs/features.md — complete input/output and feature documentation.
-- pyproject.toml — include ML tests in default repository test discovery.
-- CONTEXT.md; TASKS.md; .agent/ml/RESULT.md — durable decisions and feature-slice
-  completion state. These cross-directory edits are required for documentation,
-  regression discovery, and accurate project/task tracking.
-API CHANGES: N/A for HTTP. Python API: FeatureService.build(normalized history,
-baby_id, explicit aware as_of, IANA timezone, optional date_of_birth) returns an
-immutable FeatureVector with 13 numerical values, sleep-history-v1, and metadata.
-Existing repository EventRecord satisfies the read-only input protocol.
+- ml/prediction/__init__.py; ml/prediction/contracts.py;
+  ml/prediction/baseline.py; ml/prediction/tabpfn.py; ml/prediction/service.py —
+  explicit seven-day conditional baseline, immutable numerical/provenance
+  contracts, isolated local TabPFN runtime, and production PredictionService.
+- ml/training.py; ml/evaluation.py; ml/benchmark.py — offline causal snapshot
+  labels, chronological whole-bout holdout, MAE/Brier comparison/promotion,
+  and reproducible synthetic-only real CPU benchmark.
+- ml/features.py — share bounded scope-checked UTC history projection while
+  preserving the existing sleep-history-v1 output contract.
+- ml/requirements-tabpfn.txt — optional pinned TabPFN 9.1.0, Torch 2.14.1,
+  patched setuptools 83.0.0 runtime; core baseline requires no ML dependencies.
+- ml/tests/prediction_support.py; ml/tests/test_baseline.py;
+  ml/tests/test_training_evaluation.py; ml/tests/test_prediction_service.py;
+  ml/tests/test_tabpfn.py; ml/tests/test_prediction_privacy.py;
+  ml/tests/test_feature_privacy.py — synthetic numerical/causal/privacy/runtime
+  coverage and preservation of the standard-library-only feature boundary.
+- docs/predictions.md; ml/README.md; CONTEXT.md; SECURITY.md; TASKS.md;
+  .gitignore; .agent/ml/RESULT.md — complete targets, baseline/model selection,
+  offline/runtime/trust/retention documentation, synthetic measured results,
+  project/task state, model-artifact Git exclusions, and this result.
+API CHANGES: N/A for HTTP. Python PredictionService.predict consumes authorized
+normalized history and explicit baby/as-of/timezone/optional birth/current-sleep
+context. Returns expected_sleep_minutes, wake_probability_60m, baseline_minutes,
+and selected model_version, with private internal provenance/fallback metadata.
 DATABASE CHANGES: N/A
 TESTS:
-- `.venv/bin/python -m pytest -q` — 244 passed, including 93 new ML tests.
+- `.venv/bin/python -m pytest -q` — 335 passed, including 184 ML tests
+  (91 additional tests for this engine milestone).
 - `.venv/bin/python -m ruff check --isolated --select E4,E7,E9,F,I ml` — passed.
 - `.venv/bin/python -m mypy --strict --follow-imports=silent ml/features.py
-  ml/__init__.py` — passed, two source files.
+  ml/prediction ml/training.py ml/evaluation.py ml/benchmark.py` — nine files passed.
 - `.venv/bin/python -m compileall -q ml`; `git diff --check` — passed.
-SECURITY: No CRITICAL/HIGH findings. All records require matching UUID baby scope;
-authorization and bounded owner-scoped retrieval remain caller responsibilities.
-Input consumption is capped at 10,000 records. Validation emits fixed codes with
-no raw event values. Notes/amounts/provider payloads are not consumed. DTO/vector/
-metadata repr excludes private fields. The service does not log, print, persist,
-call providers, cache, or pool history. Tests verify silent success/failure paths,
-no shared call state, private errors, finite output, and standard-library-only
-imports. Future completion labels are masked before duplicate/start counting.
-No new runtime dependency, HTTP route, or database migration.
-COMMIT: feat: add sleep prediction feature engineering (commit containing this result)
-KNOWN ISSUES: N/A within the completed feature scope. Missing/incomplete records
-produce documented observation lower bounds; quality metadata is not confidence.
-NEXT DEPENDENCY: TASK-008 baseline slice — explicit deterministic seven-day
-baseline and sparse-history evaluation; then TASK-009 after full TASK-008 completion.
+- `.venv/bin/python -m pip check` — no broken requirements.
+- `.venv/bin/python -m pip_audit` — no known indexed-runtime vulnerabilities;
+  CPU-specific Torch wheel is not indexed by pip-audit.
+- `.venv/bin/python -m pip_audit -r ml/requirements-tabpfn.txt --disable-pip
+  --no-deps` — no known vulnerabilities in pinned TabPFN/Torch/setuptools releases.
+- `.venv/bin/python -m ml.benchmark --regressor-checkpoint
+  /tmp/omnirush/booh-regressor.ckpt --classifier-checkpoint
+  /tmp/omnirush/booh-classifier.ckpt` — actual local CPU runtime reproduced twice:
+  31 eligible training bouts, five heldout bouts, 14 heldout snapshots;
+  baseline MAE 15.11203896451008 / Brier 0.1250567942732407;
+  TabPFN MAE 0.03270927133440692 / Brier 0.0000007967734940994023;
+  promotion status validated. Official v2 default hashes verified; checkpoint
+  binaries stayed outside the workspace and were not committed.
+SECURITY: No CRITICAL/HIGH findings remain. User/baby scope is validated in history,
+model provenance, training payloads, evaluation, and inference. Limits bound
+events, bouts, snapshots, live SDK workers, address space, and fit/predict time.
+Checkpoints are trusted operator-only local regular files with verified hashes;
+never uploads/auto downloads. SDK worker has sanitized environment/offline/socket
+guards and suppressed logs/output; it receives numerical matrices and minimal
+training provenance. Rejected
+candidates/timeouts release context and temporary checkpoint copies. Production
+never trains/evaluates, calls Gemma/providers, or logs raw histories. Model results
+are revalidated for types/shapes/ranges/NaN/Infinity; invalid results use explicitly
+identified baseline or fail closed. Baseline requires three surviving bouts;
+no evidence means no fabricated numeric result. Optional installation exposed
+setuptools 78.1.0 vulnerabilities; pin/update to 83.0.0 removed the findings.
+COMMIT: feat: add TabPFN prediction engine (commit containing this result)
+KNOWN ISSUES: Synthetic repeating-pattern accuracy is not real-family evaluation.
+CPU wheel audit uses the matching base Torch release; deployers still review the
+actual distribution. SDK execution is Linux/local CPU; OS-level egress/capacity
+and per-baby worker deletion/replacement must integrate in TASK-011/deployment.
+NEXT DEPENDENCY: TASK-011 — layered authenticated prediction API, owner-scoped
+bounded history retrieval, and evaluated-artifact lifecycle.
 
-Q&A check: no blocking questions. TASK-006 is complete. Scope: pure ML feature
-definitions/service, synthetic unit tests, shared test discovery, feature docs,
-context/task/result records. Baseline implementation is the next TASK-008 slice.
+Q&A check: no blocking questions. Dependencies were implemented in order: the
+TASK-008 baseline/evaluation prerequisite passed 117 tests before TASK-009 started.
+One logical prediction-engine commit combines the user-started engine components.
+Cross-directory edits are required for docs, security policy, artifact hygiene,
+and durable task/project tracking; no real family data or secrets were used.
 
-ASSUMPTIONS: Seven-day eligibility, 12-hour recent counts, mean of up to three
-latest completed sleep durations, zero-based local day of life, 19:00–07:00 local
-night convention, -1 timing/age sentinel, and conservative incomplete-sleep
-exclusion are fixed in sleep-history-v1 and fully documented. Rolling sleep uses
-UTC interval unions. Sparse quality requires at least 24 hours of observation
-span, two completed sleeps, one feed, and two distinct wakes; it makes no
-prediction/confidence claim. Caller retrieval includes overlapping carry-in sleeps.
+ASSUMPTIONS: Predict remaining sleep and wake-within-60 from completed sleep ends.
+At-bout-start forecasting uses elapsed zero; current sleep context is explicit.
+Conditional baseline uses d > elapsed with three surviving independent samples.
+TabPFN adds elapsed minutes to sleep-history-v1, snapshots 0/30/60, and requires
+20 eligible training bouts plus binary-class variation. Hold out whole recent
+bouts and require both metrics nonworse with one strictly better before promotion.
+No refit on heldout labels. The fixed local v2 runtime is optional; each baby's
+candidate must pass its own evaluation or the explicit baseline remains selected.
+
+Previous completion: `a56e491` — independent feature-engineering slice.

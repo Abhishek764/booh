@@ -13,9 +13,9 @@ understood. Status values are `DONE`, `READY`, `BLOCKED`, or `PLANNED`.
 | `TASK-005` | backend | Implement the authenticated baby resource API. | `TASK-004` | `backend/`, `tests/`, `docs/` | `DONE` | Versioned CRUD contracts, owner-scoped repository predicates, strict request validation, bounded bodies/errors, and IDOR tests pass. | IDOR prevention, authenticated ownership, input limits, no private data in errors/logs. |
 | `TASK-006` | backend | Implement the validated sleep/feed/wake event API. | `TASK-005` | `backend/`, `tests/`, `docs/` | `DONE` | Versioned event contracts, UTC normalization, bounded pagination, owner-scoped nested/create/update/delete queries, CSRF-protected mutations, and validation pass. | IDOR prevention, allowlisted fields, timestamp validation, transaction safety. |
 | `TASK-007` | data/backend | Implement the bounded Huckleberry CSV importer. | `TASK-006` | `backend/`, `tests/`, `docs/` | `DONE` | Supported synthetic fixtures import deterministically; malformed, oversized, duplicate, and impossible rows are handled explicitly. | Upload limits, memory-only originals, formula-injection defense, deletion path, isolation. |
-| `TASK-008` | ml/backend | Implement the versioned feature service and deterministic seven-day baseline. | `TASK-006` | `ml/`, `backend/`, `tests/` | `READY` | Feature versioning, sparse-history behavior, reproducible predictions, and baseline evaluation pass. | Authorized user data only, no cross-user pooling, explicit uncertainty, no medical claims. |
-| `TASK-009` | ml | Add the isolated TabPFN adapter and evaluate it against the baseline. | `TASK-008` | `ml/`, `tests/`, `docs/` | `PLANNED` | Offline evaluation documents when TabPFN improves the baseline and when it is unavailable. | Bounded resources, model/version provenance, sparse-data safety, no training leakage. |
-| `TASK-011` | backend | Expose the layered prediction API. | `TASK-004`, `TASK-008`, `TASK-009` | `backend/`, `tests/`, `docs/` | `PLANNED` | `/api/v1` contracts, auth, validation, ownership, errors, and model metadata are tested and documented. | Thin routes, IDOR tests, rate/size limits, no raw private history in logs/errors. |
+| `TASK-008` | ml/backend | Implement the versioned feature service and deterministic seven-day baseline. | `TASK-006` | `ml/`, `backend/`, `tests/` | `DONE` | Feature versioning, sparse-history behavior, reproducible predictions, and baseline evaluation pass. | Authorized user data only, no cross-user pooling, explicit uncertainty, no medical claims. |
+| `TASK-009` | ml | Add the isolated TabPFN adapter and evaluate it against the baseline. | `TASK-008` | `ml/`, `tests/`, `docs/` | `DONE` | Offline evaluation documents when TabPFN improves the baseline and when it is unavailable. | Bounded resources, model/version provenance, sparse-data safety, no training leakage. |
+| `TASK-011` | backend | Expose the layered prediction API. | `TASK-004`, `TASK-008`, `TASK-009` | `backend/`, `tests/`, `docs/` | `READY` | `/api/v1` contracts, auth, validation, ownership, errors, and model metadata are tested and documented. | Thin routes, IDOR tests, rate/size limits, no raw private history in logs/errors. |
 | `TASK-010` | llm/security | Add the Gemma summary service for short validated summaries. | `TASK-011` | `backend/`, `ml/`, `tests/`, `docs/` | `PLANNED` | Prompt minimization, injection tests, strict output validation, bounded length, and deterministic fallback pass. | Prompt injection defense, no tools/secrets, output validation, privacy-preserving logs. |
 | `TASK-012` | llm/backend | Add the ElevenLabs TTS provider abstraction and bounded audio flow. | `TASK-011` | `backend/`, `frontend/`, `tests/`, `docs/` | `PLANNED` | Provider failures degrade safely; audio access is authorized, bounded, and retention-controlled. | Fixed provider host, secret isolation, SSRF defense, content/privacy review. |
 | `TASK-013` | frontend | Build the accessible nighttime dashboard and prediction presentation. | `TASK-010`, `TASK-012` | `frontend/`, `tests/`, `docs/` | `PLANNED` | Authenticated users see their own validated prediction and uncertainty; loading/error/empty states work. | XSS-safe rendering, no secrets, no cross-user data, no medical/guarantee language. |
@@ -26,12 +26,23 @@ understood. Status values are `DONE`, `READY`, `BLOCKED`, or `PLANNED`.
 
 ## Historical alignment
 
+Completed claim: prediction-engine milestone — ml, finish TASK-008's deterministic
+baseline/evaluation prerequisite, then implement TASK-009's local TabPFN adapter
+and production service. User explicitly started both components; implement them
+in dependency order and record one logical prediction-engine completion commit.
+Q&A check: no blocking questions. Numerical results are independent of Gemma.
+Baseline prerequisite verified before TASK-009 implementation: causal recent
+held-out MAE/Brier workflow and 117 baseline/feature/training tests passed.
+Completion: explicit baseline, local bounded TabPFN regressor/classifier,
+separate offline training/evaluation, production inference with safe fallback,
+and real synthetic CPU evaluation. All 335 tests pass. Result: `.agent/ml/RESULT.md`.
+
 Completed claim: `TASK-008` feature-engineering slice — ml, independent numerical
 features from normalized, single-baby history. Dependency `TASK-006` is complete.
 Q&A check: no blocking questions. Result: `.agent/ml/RESULT.md`. Feature service,
 definitions/docs, and 93 deterministic edge/privacy unit tests are complete.
-TASK-008 remains `READY` for the baseline implementation/evaluation slice; it is
-not marked DONE until that acceptance criterion is complete.
+The baseline/evaluation slice is now completed by the prediction-engine milestone
+above; TASK-008 is DONE.
 
 Completed claim: `TASK-007` — data/backend, secure Huckleberry and generic CSV
 import pipeline. Dependencies `TASK-004` through `TASK-006` are complete.

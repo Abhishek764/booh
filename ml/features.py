@@ -200,6 +200,25 @@ def _validated_event(record: NormalizedEventLike, baby_id: UUID) -> HistoryEvent
     return HistoryEvent(baby_id, kind, start, end)
 
 
+def normalize_history(
+    history: Iterable[NormalizedEventLike], *, baby_id: UUID
+) -> tuple[HistoryEvent, ...]:
+    """Bounded, scope-checked UTC projection shared by features and numeric models."""
+
+    if not isinstance(baby_id, UUID):
+        raise FeatureValidationError("invalid_history_scope")
+    try:
+        records = iter(history)
+    except TypeError:
+        raise FeatureValidationError("invalid_history") from None
+    result: list[HistoryEvent] = []
+    for record in records:
+        if len(result) >= MAX_HISTORY_EVENTS:
+            raise FeatureValidationError("history_too_large")
+        result.append(_validated_event(record, baby_id))
+    return tuple(result)
+
+
 def _rolling_sleep_minutes(
     sleeps: list[HistoryEvent], start: datetime, end: datetime
 ) -> float:
@@ -253,19 +272,11 @@ class FeatureService:
             type(date_of_birth) is not date or date_of_birth > local.date()
         ):
             raise FeatureValidationError("invalid_birth_date")
-        try:
-            records = iter(history)
-        except TypeError:
-            raise FeatureValidationError("invalid_history") from None
-
         events: list[HistoryEvent] = []
         keys: set[tuple[object, ...]] = set()
         input_count = duplicates = future = old = 0
-        for record in records:
+        for event in normalize_history(history, baby_id=baby_id):
             input_count += 1
-            if input_count > MAX_HISTORY_EVENTS:
-                raise FeatureValidationError("history_too_large")
-            event = _validated_event(record, baby_id)
             if event.start_time > current:
                 future += 1
                 continue
@@ -338,4 +349,5 @@ __all__ = [
     "MAX_HISTORY_EVENTS", "MISSING_VALUE", "FeatureDefinition", "FeatureMetadata",
     "FeatureService", "FeatureValidationError", "FeatureVector", "HistoryEvent",
     "NormalizedEventLike",
+    "normalize_history",
 ]

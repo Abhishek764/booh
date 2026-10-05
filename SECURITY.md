@@ -224,6 +224,40 @@ the canonical configuration.
 - Record model/version and validation outcomes without storing unnecessary raw
   prompts or responses.
 
+### Numerical prediction boundary
+
+- Numerical inference has no Gemma, LLM, prompt, or text-provider dependency.
+  Immutable validated predictions are created before any future summary flow.
+- The explicit last-seven-day baseline uses only the selected baby's completed
+  bouts and requires three independent surviving samples; sparse evidence yields
+  `insufficient_history`, not a fabricated time/probability.
+- TabPFN is a local optional adapter. Train on one baby's bounded numerical
+  snapshots, use chronological whole-bout holdout with labels available before
+  the training cutoff, and evaluate MAE/Brier without hiding failures behind
+  baseline scores. Only baseline-improving evaluated artifacts are eligible.
+- Production inference cannot fit or evaluate; it checks baby/model/feature
+  scope/version, training/validation time, staleness, missing features, and target
+  support. Reject nonfinite, out-of-range, malformed, and invalid-shape SDK output.
+  Default fallback is explicitly identified as `baseline-7d-v1`; fail-closed mode
+  is available. Missing baseline evidence always fails safely.
+- SDK execution uses a spawned, bounded CPU worker with sanitized environment,
+  offline settings, Python network-socket guard, and silent logs/stdout/stderr.
+  Checkpoints are trusted operator-provisioned local artifacts, verified against
+  expected SHA-256 before loading, never user uploads or `auto` downloads.
+- Workers receive numerical matrices and minimal training provenance, have finite row/process/memory/time
+  budgets, and are explicitly closed on rejected candidates or replacement.
+  Fitted user context stays in process memory; original histories are not written
+  to model artifacts. Account/baby deletion must close associated workers when
+  the authenticated prediction lifecycle is integrated in TASK-011.
+- Model files/fitted state are Git-ignored. Optional dependency review repaired
+  the setuptools vulnerability by pinning 83.0.0. Installed-runtime and pinned
+  TabPFN/PyTorch/setuptools release audits report no known vulnerabilities; the
+  CPU-specific Torch wheel itself is not indexed by pip-audit and is checked via
+  its matching base release. No CRITICAL/HIGH feature findings remain.
+- Synthetic numerical/privacy tests and the actual local CPU benchmark are
+  documented in `docs/predictions.md`. Synthetic accuracy is not a real-family
+  performance or medical claim; each selected baby's candidate must be evaluated.
+
 ## Docker and deployment security
 
 - Use minimal pinned base images, non-root users, a read-only filesystem where

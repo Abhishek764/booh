@@ -66,6 +66,11 @@ uploads/
 data/
 tmp/
 temp/
+*.ckpt
+*.pt
+*.pth
+*.safetensors
+*.tabpfn_fit
 
 # Reviewed synthetic import fixtures and the data-agent completion record only.
 !/backend/tests/fixtures/imports/huckleberry.csv
