@@ -9,12 +9,13 @@ uncertain, and not medical advice.
 
 ## Current Phase
 
-Phase 1 — Authenticated history ingestion. The repository foundation,
+Phase 1 — Authorized history and ML feature foundation. The repository foundation,
 PostgreSQL/Alembic schema, Next.js application boundary, and OAuth/session
 authorization are complete. Baby-owned event tracking and the bounded CSV import
 API are implemented. The database includes events, predictions, summaries, and
-external audio references. The next dependency-ready milestone is the versioned
-feature service and explicit deterministic seven-day baseline.
+external audio references. The independent, versioned numerical feature service
+is implemented. The next dependency-ready milestone is the explicit deterministic
+seven-day baseline and its sparse-history evaluation.
 
 ## Hacktoberfest 2026 challenge context
 
@@ -159,6 +160,32 @@ in `docs/imports.md`. Real CSV exports and baby data must never enter the repo.
 
 ## ML
 
+`ml.features.FeatureService` is a deterministic standard-library-only component
+that consumes normalized, single-baby history plus an explicit aware `as_of`,
+IANA timezone, and optional date of birth. It accepts the repository event-record
+projection or the minimal offline `HistoryEvent` DTO; it does not import backend,
+FastAPI, HTTP/request, repository, or model code. Callers retrieve authorized
+history, and the feature layer validates every record's baby scope.
+
+`sleep-history-v1` defines a fixed, validated 13-float vector: local hour, minutes
+since feed, last completed sleep duration, mean of the latest three completed
+sleeps, rolling 12/24-hour sleep, latest explicit inter-wake interval, recent
+feed/sleep counts, day of life, night indicator, incomplete sleep count, and
+observation span. Units/order/bounds and every feature are in `docs/features.md`.
+Missing timing/age uses `-1.0` plus explicit missing-feature metadata. Empty,
+first-event, and sparse histories return finite vectors with a conservative
+`insufficient_history` flag rather than invented observations or confidence.
+
+Windows use elapsed UTC time; local hour, night/day (19:00–07:00), and zero-based
+day of life use the supplied timezone. Input is bounded to 10,000 records and
+seven-day feature eligibility, with overlapping completed sleeps retained at the
+window boundary. Rolling sleep measures the union of clipped completed intervals.
+Unclosed/not-yet-completed sleep has no inferred duration; future completions are
+masked before duplicate handling to prevent retrospective feature leakage.
+Malformed records fail with fixed private-data-free errors. The service is
+stateless, has no logging/output/provider calls, and omits sensitive values from
+automatic DTO/vector/metadata representations. All 93 synthetic ML tests pass.
+
 TabPFN is planned for user-history prediction after feature and data boundaries
 are established. A deterministic seven-day baseline is required first and must
 remain explicit, reproducible, and evaluated for sparse histories.
@@ -267,6 +294,9 @@ Names only; values must never be stored here:
 - `TASK-007` — secure Huckleberry/generic CSV import, owner-scoped deduplication,
   transactional persistence, bounded summaries, and synthetic security tests
   (local importer completion commit).
+- `TASK-008` feature-engineering slice — independent, versioned numerical feature
+  service with validated vectors and deterministic edge/privacy tests (local
+  feature completion commit). The roadmap task remains open for the baseline.
 
 ## Engineering Decisions
 
@@ -287,11 +317,20 @@ Names only; values must never be stored here:
   share persistence-independent normalized values across event tracking/import.
 - Reject unknown/ambiguous columns and require explicit locale date order. Use
   semantic, baby-scoped duplicate identity independent of event source.
+- Keep ML features request-free and standard-library-only, with structural input
+  records, explicit as-of context, scope checks, and no persistence/provider work.
+- Version feature order, units, windows, validation bounds, and missingness.
+  Treat observed zeros as lower bounds, not proof of complete history.
+- Exclude incomplete/future-completed sleeps from durations and mask future ends
+  before deduplication; merge completed intervals for rolling elapsed sleep.
 
 ## Known Risks
 
 - User sleep and feed histories are sensitive household data.
 - Sparse or irregular event histories can produce misleading confidence.
+- Feature observation span does not establish logging completeness; the sparse
+  quality heuristic is not model confidence. Incomplete sleeps contribute no
+  inferred duration, and future baseline policy must preserve these distinctions.
 - OAuth/session implementation can create account-linking or IDOR risks; the
   completed boundary is covered by deterministic tests but needs live-service
   and deployment review.
@@ -313,18 +352,21 @@ Names only; values must never be stored here:
 
 ## Current TODO
 
-- Implement the versioned feature service using authorized normalized events.
-- Implement and evaluate the deterministic baseline before TabPFN.
+- Complete TASK-008's explicit deterministic baseline and sparse-history
+  evaluation using the versioned feature boundary before TabPFN.
+- Integrate bounded, owner-authorized history retrieval with the baseline; include
+  completed sleep intervals that overlap the feature window.
 
 ## Last Completed Task
 
-`TASK-007` — secure Huckleberry and generic CSV import with bounded parsing,
-UTC normalization, baby-scoped duplicates, atomic persistence, and safe summaries.
+`TASK-008` feature-engineering slice — independent, versioned numerical features
+from normalized history, with explicit missingness, provenance, UTC/local time
+semantics, privacy/scope validation, and edge-case unit tests.
 
 ## Last Commit
 
-`feat: add secure Huckleberry CSV importer` — local completion commit carrying
-this context and the data-agent result.
+`feat: add sleep prediction feature engineering` — local completion commit carrying
+this context and the ML-agent result.
 
 ## Last Security Review
 
@@ -337,11 +379,16 @@ validation, duration/feed rules, CSRF-protected mutations, upload streaming/row/
 cell/record/column budgets, filename traversal, MIME/encoding, formula/control
 injection, malicious imported text, safe errors/logs, timeout/concurrency,
 cross-user import isolation, semantic duplicates, transaction rollback, dependency
-checks, and secret review. All 151 backend tests pass; targeted Ruff and mypy checks
-pass, and the pinned Python dependency audit reports no known vulnerabilities.
-No CRITICAL or HIGH findings were identified.
+checks, and secret review. Feature review additionally covers fixed single-baby
+scope, bounded iterables, finite/range-validated output, explicit sparse-history
+metadata, future-label exclusion, silent/private errors and representations,
+stateless calls, and a standard-library-only dependency boundary. All 244
+backend/ML tests pass; targeted Ruff and strict ML mypy checks pass. This feature
+adds no runtime dependency; the prior pinned dependency audit reported no known
+vulnerabilities. No CRITICAL or HIGH findings were identified.
 
 ## Next Recommended Task
 
-`TASK-008` — implement the versioned feature service and deterministic seven-day
-baseline using the completed authorized event/import boundaries.
+`TASK-008` baseline slice — implement and evaluate the explicit deterministic
+seven-day baseline using the completed authorized event/import and feature
+boundaries. Keep sparse-history policy explicit before TabPFN.

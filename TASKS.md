@@ -26,6 +26,13 @@ understood. Status values are `DONE`, `READY`, `BLOCKED`, or `PLANNED`.
 
 ## Historical alignment
 
+Completed claim: `TASK-008` feature-engineering slice — ml, independent numerical
+features from normalized, single-baby history. Dependency `TASK-006` is complete.
+Q&A check: no blocking questions. Result: `.agent/ml/RESULT.md`. Feature service,
+definitions/docs, and 93 deterministic edge/privacy unit tests are complete.
+TASK-008 remains `READY` for the baseline implementation/evaluation slice; it is
+not marked DONE until that acceptance criterion is complete.
+
 Completed claim: `TASK-007` — data/backend, secure Huckleberry and generic CSV
 import pipeline. Dependencies `TASK-004` through `TASK-006` are complete.
 Q&A check: no blocking questions. Result: `.agent/data/RESULT.md`.
