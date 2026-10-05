@@ -224,6 +224,51 @@ the canonical configuration.
 - Record model/version and validation outcomes without storing unnecessary raw
   prompts or responses.
 
+### Standalone Gemma summary boundary (TASK-010)
+
+- SummaryService revalidates a completed numerical result and projects only
+  expected remaining minutes, wake-within-60 probability, and baseline minutes.
+  Unknown minimal-input fields, text coercion, invalid/nonfinite numbers, histories,
+  imported notes, IDs, and personal data are rejected before provider invocation.
+  Full prediction metadata never enters the prompt. Independent immutable copies
+  isolate the caller and the output validator from provider-side input mutation.
+- Fixed system instructions and delimited numeric JSON are the entire prompt.
+  The provider has no tools, database/model access, request-selected host/model,
+  or browser-visible credential. Secrets appear only in server-side headers.
+- Strict JSON shape and 1,024-character content, 120-character sentence,
+  one-to-three sentence, and 300-character final-text limits are enforced locally.
+  Only reviewed sentences exactly grounded in source values can pass. A closed
+  grammar excludes medical/emergency/feeding advice, fabricated facts/times,
+  guarantees, instructions, private text, markup, and Unicode/control smuggling.
+  Invalid output always uses deterministic local language; numeric results remain
+  unchanged. Version/requested-model/outcome metadata is internal and contains no
+  rejected text or exception details.
+- Enabled environment configuration requires an explicit approved APP_ENV.
+  Hosted endpoints require HTTPS, and staging/production require a credential.
+  Invalid configuration fails closed for outbound calls. Only explicitly named
+  development/test loopback servers receive the local HTTP exception.
+- All DNS answers must be public unicast outside that exception, including mixed
+  answer sets. Validated addresses are pinned, TLS verifies the original host,
+  environment proxies are ignored, and redirects/retries are disabled. Fixed
+  path, status/MIME/encoding checks, and 8-KiB actual response counting bound I/O.
+- Four service slots and four process-wide transport slots bound concurrency.
+  The caller's await budget is five seconds; sockets have a four-second deadline
+  with shutdown even for trickled headers. System DNS cannot be forcibly cancelled
+  by Python; resolver stalls occupy at most four transport workers. Resolver and
+  deployment-wide egress/capacity configuration are owned by devops in TASK-017.
+- The service retains no history, prompt, raw response, or summary on disk or in
+  caches; private exceptions and DTO/result representations are silent/redacted.
+  Hosted retention review precedes production family data; `store: false` is not
+  a provider retention guarantee. TASK-011 owns authenticated HTTP integration,
+  ownership checks, and authorized persistence/deletion.
+- All 180 added summary/provider tests use synthetic data, mocked DNS/TLS, or
+  explicit loopback HTTP. No new runtime dependency or migration is introduced;
+  all 515 backend/ML tests pass. Changed files pass Ruff/strict mypy. Installed
+  indexed-package and pinned ML-release audits report no known vulnerabilities;
+  the CPU-specific Torch wheel remains unindexed. No CRITICAL/HIGH findings remain
+  in this feature review. Live Gemma verification is pending; full contracts and
+  remaining operator/integration work are documented in `docs/summaries.md`.
+
 ### Numerical prediction boundary
 
 - Numerical inference has no Gemma, LLM, prompt, or text-provider dependency.

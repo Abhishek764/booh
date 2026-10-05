@@ -16,7 +16,7 @@ understood. Status values are `DONE`, `READY`, `BLOCKED`, or `PLANNED`.
 | `TASK-008` | ml/backend | Implement the versioned feature service and deterministic seven-day baseline. | `TASK-006` | `ml/`, `backend/`, `tests/` | `DONE` | Feature versioning, sparse-history behavior, reproducible predictions, and baseline evaluation pass. | Authorized user data only, no cross-user pooling, explicit uncertainty, no medical claims. |
 | `TASK-009` | ml | Add the isolated TabPFN adapter and evaluate it against the baseline. | `TASK-008` | `ml/`, `tests/`, `docs/` | `DONE` | Offline evaluation documents when TabPFN improves the baseline and when it is unavailable. | Bounded resources, model/version provenance, sparse-data safety, no training leakage. |
 | `TASK-011` | backend | Expose the layered prediction API. | `TASK-004`, `TASK-008`, `TASK-009` | `backend/`, `tests/`, `docs/` | `READY` | `/api/v1` contracts, auth, validation, ownership, errors, and model metadata are tested and documented. | Thin routes, IDOR tests, rate/size limits, no raw private history in logs/errors. |
-| `TASK-010` | llm/security | Add the Gemma summary service for short validated summaries. | `TASK-011` | `backend/`, `ml/`, `tests/`, `docs/` | `PLANNED` | Prompt minimization, injection tests, strict output validation, bounded length, and deterministic fallback pass. | Prompt injection defense, no tools/secrets, output validation, privacy-preserving logs. |
+| `TASK-010` | llm/security | Add the standalone Gemma summary service for short validated summaries. | `TASK-009` | `backend/`, `tests/`, `docs/` | `DONE` | Prompt minimization, injection tests, strict output validation, bounded length, and deterministic fallback pass; HTTP integration follows TASK-011. | Prompt injection defense, no tools/secrets, output validation, privacy-preserving logs. |
 | `TASK-012` | llm/backend | Add the ElevenLabs TTS provider abstraction and bounded audio flow. | `TASK-011` | `backend/`, `frontend/`, `tests/`, `docs/` | `PLANNED` | Provider failures degrade safely; audio access is authorized, bounded, and retention-controlled. | Fixed provider host, secret isolation, SSRF defense, content/privacy review. |
 | `TASK-013` | frontend | Build the accessible nighttime dashboard and prediction presentation. | `TASK-010`, `TASK-012` | `frontend/`, `tests/`, `docs/` | `PLANNED` | Authenticated users see their own validated prediction and uncertainty; loading/error/empty states work. | XSS-safe rendering, no secrets, no cross-user data, no medical/guarantee language. |
 | `TASK-014` | integration | Integrate backend, frontend, prediction, summary, and audio flows. | `TASK-013` | `backend/`, `frontend/`, `ml/`, `tests/`, `docs/` | `PLANNED` | Cross-module happy paths and failure paths pass with stable contracts and no ownership regressions. | End-to-end authorization, redacted logs, bounded calls, provider failure isolation. |
@@ -25,6 +25,16 @@ understood. Status values are `DONE`, `READY`, `BLOCKED`, or `PLANNED`.
 | `TASK-017` | devops | Containerize and deploy through Docker and Render. | `TASK-016` | `Dockerfile*`, `render.yaml`, `docs/`, `tests/` | `PLANNED` | Reproducible build, health checks, migrations, observability, rollback, and runtime configuration are documented. | Non-root image, no baked secrets, pinned dependencies, least privilege, secure egress. |
 
 ## Historical alignment
+
+Completed claim: `TASK-010` — llm/security, explicitly user-started standalone
+summary service using TASK-009's completed numerical result contract. Its service
+dependency is TASK-009; authenticated HTTP/lifecycle integration remains TASK-011.
+Q&A check: no blocking questions. No prediction policy or numerical changes.
+Implementation and security review are verified: 180 added summary/provider tests
+and all 515 backend/ML tests pass, scoped Ruff/strict mypy and dependency checks
+pass. Documentation: `docs/summaries.md`. Result: `.agent/llm/RESULT.md`.
+Completion: `feat: add guarded Gemma sleep summaries` — one explicitly approved
+logical completion commit carrying this record and the LLM-agent result.
 
 Completed claim: prediction-engine milestone — ml, finish TASK-008's deterministic
 baseline/evaluation prerequisite, then implement TASK-009's local TabPFN adapter

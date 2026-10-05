@@ -16,7 +16,9 @@ API are implemented. The database includes events, predictions, summaries, and
 external audio references. The independent, versioned numerical feature service
 is implemented, along with the explicit seven-day baseline, local optional TabPFN
 adapter, offline held-out evaluation, and safe production numerical inference.
-The next dependency-ready milestone is the authenticated layered prediction API.
+The standalone guarded Gemma summary service is implemented and verified.
+The next dependency-ready milestone is the authenticated layered prediction API
+and summary integration.
 
 ## Hacktoberfest 2026 challenge context
 
@@ -234,9 +236,31 @@ semantics, metrics, and reproducible commands are in `docs/predictions.md`.
 
 ## LLM
 
-Gemma is planned only for short summaries of validated predictions. It will not
-make predictions, authorize access, query the database, or provide medical
-advice. Prompt minimization and output validation are required.
+`backend.app.services.summaries.SummaryService` implements standalone short
+summaries of already validated numerical predictions. It projects exactly three
+finite bounded numeric fields: expected remaining minutes, wake probability
+within 60 minutes, and baseline minutes. Identity, history, imported text, ages,
+timestamps, numerical model versions, and feature metadata never enter prompts.
+
+`GemmaProvider` uses fixed system instructions and delimited numeric JSON through
+an operator-configured OpenAI-compatible Gemma endpoint. It has no tools, database
+access, or numerical authority. `OutputValidator` accepts only strict one-to-three
+sentence JSON and reviewed exact source-grounded wording, bounded to 300 text
+characters. It rejects fabricated values/facts, advice, guarantees, instructions,
+private text, markup, Unicode/control smuggling, and malformed/oversized output.
+Provider/configuration/validation failures produce deterministic local summaries
+without changing the numerical result. Invalid input produces a nonnumeric
+unavailable summary without calling a provider.
+
+The default provider is disabled. Enabled configuration requires an explicit
+approved APP_ENV; hosted use requires HTTPS and staging/production require a
+credential. Public DNS/IP pinning, original-host TLS, no proxies/redirects/retries,
+four service/transport slots, five-second await/four-second socket budgets, and
+8-KiB response limits bound calls. System resolver stalls remain bounded by four
+workers but require operator resolver deadlines. The service has no persistence,
+caching, or private-data logging; summary/requested-model/outcome metadata is
+internal. Hosted handling/retention review and live Gemma verification precede
+production use. Contracts and verification are in `docs/summaries.md`.
 
 ## TTS
 
@@ -310,6 +334,7 @@ Names only; values must never be stored here:
 - `GOOGLE_OAUTH_ISSUER`
 - `ELEVENLABS_API_KEY`
 - `ELEVENLABS_VOICE_ID`
+- `GEMMA_PROVIDER`
 - `GEMMA_BASE_URL`
 - `GEMMA_MODEL`
 - `GEMMA_API_KEY`
@@ -342,6 +367,9 @@ Names only; values must never be stored here:
 - `TASK-008` baseline/evaluation completion and `TASK-009` — explicit seven-day
   baseline, real local TabPFN, causal whole-bout heldout MAE/Brier evaluation,
   and production numerical service with safe fallback (local engine commit).
+- `TASK-010` — standalone guarded Gemma summary provider/service, minimized numeric
+  prompts, strict grounded output validation, deterministic fallback, and synthetic
+  provider/privacy/security coverage (local summary completion commit).
 
 ## Engineering Decisions
 
@@ -374,6 +402,13 @@ Names only; values must never be stored here:
   beats/equalizes both baseline metrics and strictly improves at least one.
 - Use explicit local v2 checkpoints and verified hashes; no automatic model
   downloads/hosted-family-data transfer. Identify baseline fallback honestly.
+- Keep Gemma as a standalone optional summary provider after numerical validation.
+  Project only three numeric fields; reject unknown/text inputs before provider
+  use. Use a reviewed closed output grammar and exact source grounding instead
+  of relying on a medical/injection keyword blacklist.
+- Use deterministic local summaries when generation is disabled/unavailable or
+  output is rejected, without altering numerical predictions. Keep host/model
+  selection operator-owned and provider versions/outcomes in internal metadata.
 
 ## Known Risks
 
@@ -400,6 +435,12 @@ Names only; values must never be stored here:
 - Per-process import budgets are implemented; deployment-wide rate limits and
   backup retention remain deployment/security work.
 - Provider availability, cost, and data handling need review before integration.
+- Live Gemma/weights verification and hosted retention review are pending. Python
+  cannot forcibly interrupt system DNS; resolver stalls can occupy four transport
+  slots until resolution returns (devops, TASK-017). The service await still falls
+  back within five seconds. Deployment-wide egress/rate limits remain TASK-017.
+- Repository-wide Ruff reports 22 pre-existing lint findings in older backend
+  files; TASK-010's six new files pass scoped checks (qa, TASK-016).
 - ML and generated summaries must not be interpreted as medical guidance.
 - Frontend browser state is limited to the display theme until authenticated
   domain state is introduced behind the API service boundary.
@@ -412,18 +453,32 @@ Names only; values must never be stored here:
   owner-authorized history retrieval, including feature-window overlapping sleeps.
 - Integrate per-baby evaluated-artifact/worker lifecycle, authorized deletion,
   and replacement without fitting in HTTP production inference.
+- Integrate the validated summary service after authorized numerical prediction,
+  with bounded provider calls and authorized persistence/deletion.
 
 ## Last Completed Task
 
-Prediction engine — TASK-008 baseline/evaluation completion followed by TASK-009
-local TabPFN adapter, held-out comparison, and safe production numerical service.
+TASK-010 — standalone guarded Gemma summaries with minimized input, reviewed
+grounded output, deterministic fallback, and bounded privacy-safe provider I/O.
 
 ## Last Commit
 
-`feat: add TabPFN prediction engine` — local completion commit carrying
-this context and the ML-agent result.
+`feat: add guarded Gemma sleep summaries` — local completion commit carrying
+this context and the LLM-agent result.
 
 ## Last Security Review
+
+TASK-010 standalone summary review: minimized three-scalar prompts, closed grounded
+output grammar, injection/advice/exfiltration/Unicode rejection, exact probability
+formatting, immutable independent copies, silent errors/representations, safe
+fallback, missing configuration, provider timeout/concurrency/cancellation,
+DNS/IP/TLS pinning, no proxy/redirect/retry use, actual response byte limits, and
+trickled-header shutdown. All 180 added tests and all 515 backend/ML tests pass.
+Scoped Ruff and strict mypy pass; dependency consistency and indexed-runtime/
+pinned-release audits pass. The CPU-specific Torch wheel is unindexed by
+pip-audit; its matching pinned base release was checked. No new dependencies,
+migrations, or CRITICAL/HIGH feature findings. Live Gemma and authenticated
+integration remain the next applicable provider/API work.
 
 Secure OAuth and baby authorization review: backend tests cover canonical route
 checks, invalid state/callbacks, expired sessions, unauthenticated requests,
@@ -451,4 +506,5 @@ No CRITICAL or HIGH findings remain.
 ## Next Recommended Task
 
 `TASK-011` — layered authenticated prediction API with bounded owner-scoped history
-retrieval, safe responses, and evaluated per-baby model lifecycle.
+retrieval, safe responses, evaluated per-baby model lifecycle, and authorized
+summary integration.
