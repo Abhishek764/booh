@@ -10,3 +10,4 @@ to be reflected in `CONTEXT.md`.
 - [Numerical predictions](predictions.md)
 - [Authenticated prediction API](prediction-api.md)
 - [Guarded Gemma summaries](summaries.md)
+- [ElevenLabs speech and audio](speech.md)

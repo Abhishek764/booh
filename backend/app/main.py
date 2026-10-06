@@ -16,10 +16,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict
 
+from backend.app.audio_contracts import AudioAPIError
 from backend.app.config import AuthSettings, ConfigurationError, ImportLimits
 from backend.app.importers import CsvImportError
 from backend.app.middleware import AuthPrivacyMiddleware
 from backend.app.prediction_contracts import PredictionAPIError
+from backend.app.routes.audio import router as audio_router
 from backend.app.routes.auth import router as auth_router
 from backend.app.routes.babies import router as babies_router
 from backend.app.routes.events import router as events_router
@@ -148,7 +150,26 @@ async def prediction_error_handler(request: Request, exc: PredictionAPIError) ->
         "prediction_rate_limited": "Please wait before requesting another prediction.",
     }.get(exc.code, "The prediction service is temporarily unavailable.")
     return JSONResponse(status_code=exc.status_code, content={"error": {"code": exc.code, "message": message}},
-                        headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "X-Content-Type-Options": "nosniff"})
+                         headers={"Cache-Control": "no-store", "Referrer-Policy": "no-referrer", "X-Content-Type-Options": "nosniff"})
+
+
+async def audio_error_handler(request: Request, exc: AudioAPIError) -> JSONResponse:
+    del request
+    message = {
+        "resource_not_found": "The requested resource was not found.",
+        "invalid_request": "The request could not be processed.",
+        "audio_busy": "Audio generation is temporarily busy.",
+        "audio_timeout": "Audio generation timed out.",
+    }.get(exc.code, "Audio is temporarily unavailable.")
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"error": {"code": exc.code, "message": message}},
+        headers={
+            "Cache-Control": "no-store",
+            "Referrer-Policy": "no-referrer",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @asynccontextmanager
@@ -183,6 +204,7 @@ def create_app(
     application.state.import_service = None
     application.state.import_limits = import_limits or ImportLimits.from_environment()
     application.state.prediction_service = None
+    application.state.audio_service = None
     application.state.prediction_models = PredictionModelRegistry()
     summary_environment = {name: os.environ[name] for name in (
         "APP_ENV", "GEMMA_PROVIDER", "GEMMA_BASE_URL", "GEMMA_MODEL", "GEMMA_API_KEY",
@@ -197,11 +219,13 @@ def create_app(
     application.add_exception_handler(EventError, event_error_handler)
     application.add_exception_handler(CsvImportError, import_error_handler)
     application.add_exception_handler(PredictionAPIError, prediction_error_handler)
+    application.add_exception_handler(AudioAPIError, audio_error_handler)
     application.include_router(auth_router, prefix=API_V1_PREFIX)
     application.include_router(babies_router, prefix=API_V1_PREFIX)
     application.include_router(events_router, prefix=API_V1_PREFIX)
     application.include_router(imports_router, prefix=API_V1_PREFIX)
     application.include_router(predictions_router, prefix=API_V1_PREFIX)
+    application.include_router(audio_router, prefix=API_V1_PREFIX)
     application.add_api_route(
         f"{API_V1_PREFIX}/health", health, response_model=HealthResponse,
         tags=["system"], summary="Check API availability",

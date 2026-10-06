@@ -17,7 +17,7 @@ understood. Status values are `DONE`, `READY`, `BLOCKED`, or `PLANNED`.
 | `TASK-009` | ml | Add the isolated TabPFN adapter and evaluate it against the baseline. | `TASK-008` | `ml/`, `tests/`, `docs/` | `DONE` | Offline evaluation documents when TabPFN improves the baseline and when it is unavailable. | Bounded resources, model/version provenance, sparse-data safety, no training leakage. |
 | `TASK-011` | backend | Expose the layered prediction API. | `TASK-004`, `TASK-008`, `TASK-009`, `TASK-010` | `backend/`, `tests/`, `docs/` | `DONE` | Authenticated prediction POST/GET, bounded owned history, numerical/baseline validation, exact persistence, guarded summaries, model lifecycle, migrations, and errors are tested and documented. | Thin routes, IDOR/CSRF tests, rate/size/worker limits, immutable numbers, no raw private history in logs/errors. |
 | `TASK-010` | llm/security | Add the standalone Gemma summary service for short validated summaries. | `TASK-009` | `backend/`, `tests/`, `docs/` | `DONE` | Prompt minimization, injection tests, strict output validation, bounded length, and deterministic fallback pass; HTTP integration follows TASK-011. | Prompt injection defense, no tools/secrets, output validation, privacy-preserving logs. |
-| `TASK-012` | llm/backend | Add the ElevenLabs TTS provider abstraction and bounded audio flow. | `TASK-011` | `backend/`, `frontend/`, `tests/`, `docs/` | `PLANNED` | Provider failures degrade safely; audio access is authorized, bounded, and retention-controlled. | Fixed provider host, secret isolation, SSRF defense, content/privacy review. |
+| `TASK-012` | llm/backend | Add the ElevenLabs TTS provider abstraction and bounded audio flow. | `TASK-011` | `backend/`, `frontend/`, `tests/`, `docs/` | `DONE` | Provider failures degrade safely; audio access is authorized, bounded, and retention-controlled. | Fixed provider host, secret isolation, SSRF defense, content/privacy review. |
 | `TASK-013` | frontend | Build the accessible nighttime dashboard and prediction presentation. | `TASK-010`, `TASK-012` | `frontend/`, `tests/`, `docs/` | `PLANNED` | Authenticated users see their own validated prediction and uncertainty; loading/error/empty states work. | XSS-safe rendering, no secrets, no cross-user data, no medical/guarantee language. |
 | `TASK-014` | integration | Integrate backend, frontend, prediction, summary, and audio flows. | `TASK-013` | `backend/`, `frontend/`, `ml/`, `tests/`, `docs/` | `PLANNED` | Cross-module happy paths and failure paths pass with stable contracts and no ownership regressions. | End-to-end authorization, redacted logs, bounded calls, provider failure isolation. |
 | `TASK-015` | security | Complete cross-layer security and privacy hardening. | `TASK-014` | `tests/`, `docs/`, `SECURITY.md` | `PLANNED` | Threat model, dependency scans, privacy/retention review, and release checklist complete with no blockers. | `CRITICAL`/`HIGH` findings block completion; verify all policy sections. |
@@ -36,6 +36,18 @@ pass; scoped Ruff/strict mypy, dependency checks/audits, migration parity/rollba
 PostgreSQL DDL, and full security review pass. Result: `.agent/backend/RESULT.md`.
 Contracts/review: `docs/prediction-api.md`. Commit: `feat: add prediction API pipeline`
 (the requested one-logical-task completion commit).
+
+Completed claim: `TASK-012` — llm/backend, explicitly user-started ElevenLabs
+speech service and owner-scoped audio flow. The implementation provides
+configurable voice/model, bounded timeout and output, optional cache, and
+`TTS_DISABLED=1` operation without a provider key or network. External storage
+references are authorized, expiring, and deleted through a bounded service path;
+the numerical prediction and summary pipeline is independent of TTS.
+Q&A check: no blocking questions. No frontend API key or provider-specific route
+logic was introduced. Synthetic mocked-provider, timeout, cache, disabled-mode,
+authorization-order, failure-cleanup, traversal, and configuration tests pass.
+Documentation: `docs/speech.md`. Result: `.agent/tts/RESULT.md`. Completion:
+`feat: add ElevenLabs voice service`.
 
 Completed claim: `TASK-010` — llm/security, explicitly user-started standalone
 summary service using TASK-009's completed numerical result contract. Its service

@@ -9,7 +9,7 @@ uncertain, and not medical advice.
 
 ## Current Phase
 
-Phase 1 — Authenticated prediction pipeline. The repository foundation,
+Phase 1 — Authenticated prediction and optional speech pipeline. The repository foundation,
 PostgreSQL/Alembic schema, Next.js application boundary, and OAuth/session
 authorization are complete. Baby-owned event tracking and the bounded CSV import
 API are implemented. The database includes events, predictions, summaries, and
@@ -19,7 +19,10 @@ adapter, offline held-out evaluation, and safe production numerical inference.
 The standalone guarded Gemma summary service is implemented and verified.
 The layered authenticated prediction POST/GET API now retrieves bounded owned
 history, runs numerical features/model/baseline, persists results, and integrates
-guarded summaries. The next dependency-ready milestone is bounded ElevenLabs audio.
+guarded summaries. The optional owner-scoped ElevenLabs speech flow is implemented
+with disabled mode, provider isolation, bounded cache, external audio references,
+and retention cleanup. The next dependency-ready milestone is the accessible
+nighttime dashboard.
 
 ## Hacktoberfest 2026 challenge context
 
@@ -280,8 +283,16 @@ failure returns 503 and preserves the committed local fallback for GET.
 
 ## TTS
 
-ElevenLabs is planned behind a provider/service abstraction. Audio generation,
-provider calls, storage, retention, and failure handling are not implemented.
+TASK-012 implements `SpeechService` over a fixed-host `ElevenLabsProvider`.
+`TTS_DISABLED=1` keeps the application functional without credentials, storage,
+or network access. Enabled speech validates the already-reviewed summary text,
+uses configurable voice/model and bounded timeout/concurrency, and optionally
+uses a 128-entry expiring process-local cache. Audio bytes are held by an
+operator-provided external storage adapter; PostgreSQL retains only provider,
+size, content type, opaque key, creation, and expiry metadata. Authorized audio
+metadata/content routes and CSRF-protected deletion are implemented. Provider,
+storage, timeout, malformed-output, and cache failures degrade without changing
+the numerical prediction. Contracts and verification are in `docs/speech.md`.
 
 ## API
 
@@ -291,8 +302,9 @@ authenticated `GET /auth/me`, and authenticated baby CRUD routes under
 `/babies`, plus authenticated event collection/mutation routes under
 `/babies/{baby_id}/events` and `/events/{event_id}`, plus the authenticated CSV
 import route `/babies/{baby_id}/imports`, plus `POST /babies/{baby_id}/predict`
-and `GET /babies/{baby_id}/predictions`. Auth, baby, event, import, and prediction routes
-remain thin and delegate to services,
+and `GET /babies/{baby_id}/predictions`, plus owner-scoped speech routes under
+`/babies/{baby_id}/predictions/{prediction_id}/audio`. Auth, baby, event, import,
+prediction, and audio routes remain thin and delegate to services,
 repositories, and provider abstractions. Baby repository queries always include
 the authenticated owner predicate; baby responses do not expose `user_id`.
 Requests reject unknown fields, client-supplied ownership fields, malformed IDs,
@@ -325,6 +337,11 @@ Snapshot revision/ownership checks and coordinated PostgreSQL baby locks prevent
 writing an outdated result across profile/history changes; conflicts return 409.
 API contracts, persistence failures/races, lifecycle, and security review are in
 `docs/prediction-api.md`.
+
+Speech POST requires live auth, session-bound CSRF, exact origin, and an owned
+prediction before body/provider/storage work. Metadata and content GET require
+live auth; all audio responses are private no-store/no-referrer/nosniff. Audio
+content is bounded to 2 MiB and references expire according to operator policy.
 
 ## Frontend
 
@@ -370,8 +387,15 @@ Names only; values must never be stored here:
 - `GOOGLE_OAUTH_CLIENT_SECRET`
 - `GOOGLE_OAUTH_REDIRECT_URI`
 - `GOOGLE_OAUTH_ISSUER`
+- `TTS_DISABLED`
 - `ELEVENLABS_API_KEY`
 - `ELEVENLABS_VOICE_ID`
+- `ELEVENLABS_MODEL`
+- `TTS_TIMEOUT_SECONDS`
+- `TTS_CACHE_ENABLED`
+- `TTS_CACHE_TTL_SECONDS`
+- `AUDIO_STORAGE_ROOT`
+- `AUDIO_RETENTION_SECONDS`
 - `GEMMA_PROVIDER`
 - `GEMMA_BASE_URL`
 - `GEMMA_MODEL`
@@ -412,6 +436,10 @@ Names only; values must never be stored here:
   numerical persistence, guarded summary integration, bounded approved-model
   lifecycle, probability migration, and privacy/failure/security tests (local
   prediction API completion commit).
+- `TASK-012` — fixed-host ElevenLabs speech service, disabled mode, configurable
+  voice/model, bounded timeout/cache/provider output, owner-scoped audio routes,
+  external storage references, retention, and synthetic security tests (current
+  local completion commit).
 
 ## Engineering Decisions
 
@@ -458,6 +486,9 @@ Names only; values must never be stored here:
 - Keep prediction context server-owned and model fitting offline. Require current
   owner/baby/revision/evaluation bindings for installed models; invalidate on
   profile/history changes, deletion, expiry, failure, and application shutdown.
+- Keep speech optional and downstream of validated summaries. Fixed provider hosts,
+  server-only credentials, bounded reviewed text/audio, explicit timeout/cache,
+  owner-joined audio references, and external-byte expiry/deletion are required.
 
 ## Known Risks
 
@@ -502,26 +533,37 @@ Names only; values must never be stored here:
   domain state is introduced behind the API service boundary.
 - Google OAuth uses a fixed callback allowlist and never accepts browser-chosen
   redirect destinations.
+- ElevenLabs availability, provider retention, external storage durability, and
+  live TLS/DNS behavior still require operational verification. Audio cache is
+  process-local; multi-process expiry and account deletion need deployment hooks.
 
 ## Current TODO
 
-- Implement TASK-012's fixed-provider, bounded authorized ElevenLabs audio flow.
 - Verify live Gemma/hosted retention, PostgreSQL locking/migration, and trusted
   offline model installation in the operational environment.
 - Coordinate multi-process model invalidation/deletion, DB/resolver deadlines,
   cluster-wide rates/egress, and account-deletion hooks before production family use.
+- Implement TASK-013's accessible nighttime dashboard and prediction presentation.
 
 ## Last Completed Task
 
-TASK-011 — authenticated prediction API with owner-scoped history, numerical
-model/baseline validation, persistence, guarded summaries, and model lifecycle.
+TASK-012 — bounded authorized ElevenLabs speech/audio flow with disabled mode,
+owner-scoped access, external storage references, and retention controls.
 
 ## Last Commit
 
-`feat: add prediction API pipeline` — local completion commit carrying
-this context and the backend-agent result.
+`feat: add ElevenLabs voice service` — local completion commit carrying this
+context and the speech-agent result.
 
 ## Last Security Review
+
+TASK-012 complete boundary review: session/CSRF/origin, cross-user/foreign/deleted
+baby authorization before provider/storage work, fixed ElevenLabs host, public
+DNS/TLS pinning, no redirects/proxies/retries, key isolation, strict voice/model
+configuration, bounded summary/audio bytes, timeout/concurrency/cache, external
+storage traversal/permission controls, expiry/deletion ordering, fixed errors,
+and no raw speech/provider/private-data logs. All TASK-012 synthetic tests pass;
+no CRITICAL/HIGH feature findings remain. TASK-011 review remains below.
 
 TASK-011 complete boundary review: session/CSRF/origin, cross-user/foreign/deleted
 babies, ownership before body/history/ML and repeated writes, bounded strict input/
@@ -573,5 +615,4 @@ No CRITICAL or HIGH findings remain.
 
 ## Next Recommended Task
 
-`TASK-012` — bounded authorized ElevenLabs audio provider flow, with fixed-host
-security, provider failure isolation, external storage references, and retention.
+`TASK-013` — accessible nighttime dashboard and prediction presentation.

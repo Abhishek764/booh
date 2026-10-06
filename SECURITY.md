@@ -269,6 +269,34 @@ the canonical configuration.
   in this feature review. Live Gemma verification is pending; full contracts and
   remaining operator/integration work are documented in `docs/summaries.md`.
 
+### ElevenLabs speech boundary (TASK-012)
+
+- `TTS_DISABLED=1` constructs no provider or storage dependency and performs no
+  network access. Predictions, events, authentication, and local summaries remain
+  functional when TTS is unavailable or misconfigured.
+- `SpeechService` accepts only the already-reviewed bounded summary text, limits
+  concurrent work, applies a finite timeout, and optionally caches at most 128
+  model/text-keyed entries with expiry. Caching is disabled by default.
+- ElevenLabs uses the fixed `https://api.elevenlabs.io` host and fixed
+  `/v1/text-to-speech/{voice_id}` protocol path. Voice and model are bounded
+  operator configuration, never request URLs. DNS answers are checked for public
+  unicast addresses, the chosen address is pinned, TLS uses the original host,
+  and proxies, redirects, and retries are not used.
+- Provider output requires status 200, `audio/mpeg`, identity encoding, nonempty
+  actual bytes, and a 2-MiB ceiling. Socket and service deadlines bound trickled
+  responses; provider credentials are sent only in a server-side header.
+- Audio routes authenticate before ownership queries, body/provider/storage work,
+  and repository joins enforce the owner predicate for source, reference, content,
+  and deletion. Missing and foreign resources share a fixed not-found response.
+- PostgreSQL stores only bounded metadata and an opaque generated storage key.
+  Audio bytes use an operator-managed external root with traversal-safe keys and
+  restrictive file permissions. Expiry metadata and `purge_expired()` provide the
+  retention hook; deletion removes external bytes before the reference.
+- Fixed error codes, no raw provider payloads, summary text, keys, credentials, or
+  audio bytes in logs, and synthetic mocked-provider tests cover failure, timeout,
+  cache, disabled mode, authorization, storage cleanup, and traversal cases.
+  No CRITICAL/HIGH finding remains in this feature review.
+
 ### Numerical prediction boundary
 
 - Numerical inference has no Gemma, LLM, prompt, or text-provider dependency.

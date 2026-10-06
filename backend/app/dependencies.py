@@ -7,22 +7,28 @@ from typing import Annotated, cast
 from fastapi import Depends, Header, Request
 from sqlalchemy.exc import SQLAlchemyError
 
+from backend.app.audio_contracts import AudioAPIError
+from backend.app.audio_storage import FileAudioStorage
 from backend.app.config import AuthSettings, ConfigurationError
 from backend.app.database import create_database_engine, create_session_factory
 from backend.app.importers import CsvImportError
 from backend.app.prediction_contracts import PredictionAPIError
 from backend.app.providers.google import GoogleOAuthProvider
+from backend.app.repositories.audio import SqlAlchemyAudioRepository
 from backend.app.repositories.auth import SqlAlchemyAuthRepository
 from backend.app.repositories.babies import SqlAlchemyBabyRepository
 from backend.app.repositories.events import SqlAlchemyEventRepository
 from backend.app.repositories.imports import SqlAlchemyImportRepository
 from backend.app.repositories.predictions import SqlAlchemyPredictionRepository
+from backend.app.services.audio import AudioService
 from backend.app.services.auth import AuthError, AuthService, Principal
 from backend.app.services.babies import BabyError, BabyService
 from backend.app.services.events import EventError, EventService
 from backend.app.services.imports import ImportService
 from backend.app.services.prediction_models import PredictionModelRegistry
 from backend.app.services.predictions import PredictionPipelineService
+from backend.app.services.speech import build_speech_service
+from backend.app.speech_config import AudioStorageSettings
 
 
 def build_auth_service(settings: AuthSettings | None = None) -> AuthService:
@@ -168,6 +174,39 @@ def get_prediction_service(
         return cast(PredictionPipelineService, configured)
 
 
+def get_audio_service(
+    request: Request, principal: Annotated[Principal, Depends(get_current_principal)]
+) -> AudioService:
+    """Construct audio dependencies only after authentication succeeds."""
+    del principal
+    configured = getattr(request.app.state, "audio_service", None)
+    if configured is not None:
+        return cast(AudioService, configured)
+    with request.app.state.auth_lock:
+        configured = getattr(request.app.state, "audio_service", None)
+        if configured is None:
+            try:
+                engine = create_database_engine()
+                factory = create_session_factory(engine)
+                speech = build_speech_service(app_env=request.app.state.auth_settings.app_env)
+                storage = None
+                retention = 86400
+                if not speech.disabled:
+                    storage_settings = AudioStorageSettings.from_environment()
+                    storage = FileAudioStorage(storage_settings.root)
+                    retention = storage_settings.retention_seconds
+                configured = AudioService(
+                    SqlAlchemyAudioRepository(factory),
+                    speech=speech,
+                    storage=storage,
+                    retention_seconds=retention,
+                )
+            except (ConfigurationError, RuntimeError, SQLAlchemyError):
+                raise AudioAPIError("audio_unavailable", 503) from None
+            request.app.state.audio_service = configured
+        return cast(AudioService, configured)
+
+
 __all__ = [
     "build_auth_service",
     "build_baby_service",
@@ -179,4 +218,5 @@ __all__ = [
     "get_event_service",
     "get_import_service",
     "get_prediction_service",
+    "get_audio_service",
 ]

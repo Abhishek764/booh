@@ -78,3 +78,17 @@ numerical predictions with revalidated summaries. All numerical values remain
 independent of Gemma. Run Alembic `upgrade head` for the probability-precision
 migration. Full contracts, failures, budgets, optional offline model lifecycle,
 and security review are in [`docs/prediction-api.md`](../docs/prediction-api.md).
+
+The optional authenticated speech routes are:
+
+- `POST /api/v1/babies/{baby_id}/predictions/{prediction_id}/audio`
+- `GET /api/v1/babies/{baby_id}/predictions/{prediction_id}/audio`
+- `GET /api/v1/babies/{baby_id}/predictions/{prediction_id}/audio/content`
+- `DELETE /api/v1/babies/{baby_id}/predictions/{prediction_id}/audio`
+
+Speech is disabled safely with `TTS_DISABLED=1`; predictions and summaries do
+not depend on ElevenLabs. When enabled, `SpeechService` validates and bounds the
+stored summary text before calling the fixed-host `ElevenLabsProvider`. The
+provider API key is server-only, and audio bytes are held in operator-provided
+external storage rather than PostgreSQL. See [`docs/speech.md`](../docs/speech.md)
+for configuration, cache, retention, failure, and security details.
